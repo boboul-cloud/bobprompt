@@ -495,7 +495,11 @@ struct ContentView: View {
     private var readerView: some View {
         GeometryReader { proxy in
             // Reader card height based on readCardFraction of screen height
-            let h = proxy.size.height * readCardFraction
+            // On iPad, limit to a reasonable size
+            let isIPad = UIDevice.current.userInterfaceIdiom == .pad
+            let maxWidth: CGFloat = isIPad ? 600 : .infinity
+            let effectiveFraction = isIPad ? min(readCardFraction, 0.35) : readCardFraction
+            let h = proxy.size.height * effectiveFraction
             VStack(spacing: 8) {
                 ZStack {
                     TeleprompterTextView(attributedText: .constant(attributedReader),
@@ -527,7 +531,7 @@ struct ContentView: View {
                             .allowsHitTesting(false)
                     }
                 }
-                .frame(maxWidth: .infinity)
+                .frame(maxWidth: maxWidth)
                 .frame(height: h)
                 .background(
                     RoundedRectangle(cornerRadius: 24, style: .continuous)
@@ -535,6 +539,7 @@ struct ContentView: View {
                 )
                 .shadow(color: .black.opacity(0.12), radius: 16, y: 8)
                 .padding(.horizontal)
+                .frame(maxWidth: .infinity) // Center on iPad
                 
                 // Progress bar under the card
                 ZStack(alignment: .leading) {

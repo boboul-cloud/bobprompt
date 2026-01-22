@@ -1,0 +1,131 @@
+═══════════════════════════════════════════════════════════
+                    TEXTES APP STORE - bobprompt
+═══════════════════════════════════════════════════════════
+
+───────────────────────────────────────────────────────────
+NOM DE L'APP
+───────────────────────────────────────────────────────────
+bobprompt
+
+
+───────────────────────────────────────────────────────────
+SOUS-TITRE (30 caractères max)
+───────────────────────────────────────────────────────────
+Téléprompteur simple et fun
+
+
+───────────────────────────────────────────────────────────
+TEXTE PROMOTIONNEL (170 caractères max)
+───────────────────────────────────────────────────────────
+Transformez votre iPhone/iPad en téléprompteur professionnel ! Idéal pour les présentations, vidéos YouTube, discours et l'apprentissage de la lecture pour les enfants.
+
+
+───────────────────────────────────────────────────────────
+DESCRIPTION
+───────────────────────────────────────────────────────────
+bobprompt transforme votre iPhone ou iPad en un téléprompteur professionnel, simple et intuitif.
+
+Que vous soyez créateur de contenu, enseignant, conférencier ou parent souhaitant aider votre enfant à lire, bobprompt est l'outil parfait pour vous accompagner.
+
+ FONCTIONNALITÉS PRINCIPALES
+
+ Défilement automatique
+Réglez la vitesse de défilement selon votre rythme de lecture. Pause et reprise en un tap.
+
+ Syllabes colorées
+Une fonctionnalité unique qui alterne les couleurs des syllabes pour faciliter la lecture — particulièrement efficace pour les enfants et les personnes ayant des difficultés de lecture.
+
+ Mode miroir
+Inversez le texte horizontalement pour une utilisation avec un vrai téléprompteur ou un miroir.
+
+ Synthèse vocale
+Écoutez votre texte lu à haute voix pour vous entraîner ou vérifier la prononciation.
+
+ Bibliothèque de textes
+Sauvegardez et organisez tous vos scripts, discours et présentations.
+
+ Génération IA (Premium)
+Créez du contenu original grâce à l'intelligence artificielle. Idéal pour les scripts, histoires et textes éducatifs.
+
+ Thèmes personnalisables
+Choisissez parmi plusieurs thèmes (clair, sombre, coloré) et personnalisez les couleurs du texte.
+
+ Compte à rebours 3-2-1
+Préparez-vous avant que le défilement ne commence.
+
+ PARFAIT POUR LES ENFANTS
+
+bobprompt a été conçu avec une attention particulière pour l'apprentissage de la lecture :
+• Syllabes colorées pour faciliter le décodage
+• Interface simple et ludique
+• Textes exemples adaptés
+• Vitesse ajustable pour tous les niveaux
+
+ IDÉAL POUR LES CRÉATEURS
+
+• Vidéos YouTube et TikTok
+• Podcasts et voix off
+• Présentations professionnelles
+• Discours et conférences
+
+ VERSION PREMIUM
+
+Débloquez tout le potentiel de bobprompt avec un achat unique :
+• Sauvegarde illimitée de textes
+• Génération IA illimitée
+• Toutes les futures fonctionnalités incluses
+
+ RESPECT DE VOTRE VIE PRIVÉE
+
+• Aucun compte requis
+• Données stockées localement sur votre appareil
+• Aucune collecte de données personnelles
+
+Téléchargez bobprompt maintenant et transformez votre façon de lire et présenter !
+
+
+───────────────────────────────────────────────────────────
+MOTS-CLÉS (100 caractères max, séparés par des virgules)
+───────────────────────────────────────────────────────────
+téléprompteur,prompteur,lecture,enfant,syllabes,discours,présentation,vidéo,script,karaoké
+
+
+───────────────────────────────────────────────────────────
+CATÉGORIES
+───────────────────────────────────────────────────────────
+Principale : Utilitaires
+Secondaire : Éducation
+
+
+───────────────────────────────────────────────────────────
+NOTES DE VERSION (v1.0)
+───────────────────────────────────────────────────────────
+Première version de bobprompt !
+
+• Téléprompteur avec défilement automatique
+• Mode syllabes colorées pour faciliter la lecture
+• Mode miroir pour configurations professionnelles
+• Synthèse vocale intégrée
+• Bibliothèque pour sauvegarder vos textes
+• Génération de contenu par IA
+• Thèmes personnalisables
+• Compte à rebours 3-2-1
+
+
+───────────────────────────────────────────────────────────
+URL SUPPORT
+───────────────────────────────────────────────────────────
+https://boboul-cloud.github.io/bobprompt/support.html
+
+
+───────────────────────────────────────────────────────────
+URL POLITIQUE DE CONFIDENTIALITÉ
+───────────────────────────────────────────────────────────
+https://boboul-cloud.github.io/bobprompt/privacy.html
+
+
+───────────────────────────────────────────────────────────
+URL CONDITIONS D'UTILISATION
+───────────────────────────────────────────────────────────
+https://boboul-cloud.github.io/bobprompt/terms.html
+

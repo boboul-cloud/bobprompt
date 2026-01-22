@@ -7,7 +7,7 @@ class PurchaseManager: ObservableObject {
     static let shared = PurchaseManager()
     
     // ID du produit Premium (à configurer dans App Store Connect)
-    static let premiumProductID = "com.prompteur.premium"
+    static let premiumProductID = "com.bobprompt.premium"
     
     @Published private(set) var isPremium: Bool = false
     @Published private(set) var products: [Product] = []
