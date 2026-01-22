@@ -1,4 +1,4 @@
-# Prompteur Magique (iOS, SwiftUI)
+# bobprompt (iOS, SwiftUI)
 
 Un prompteur simple et ludique pour enfants : saisie de texte, lecture avec défilement automatique, pause/arrêt, coloration des syllabes en alternant les couleurs, réglage de la vitesse et de la taille du texte. Ajouts récents : mode miroir, compte à rebours 3‑2‑1, et gestion de textes enregistrés.
 

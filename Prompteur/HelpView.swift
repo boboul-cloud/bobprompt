@@ -174,7 +174,7 @@ struct HelpView: View {
                     )
                 )
             
-            Text("Prompteur Magique")
+            Text("bobprompt")
                 .font(Theme.roundedFont(size: 28, weight: .bold))
             
             Text("Votre assistant de lecture pour enfants et adultes")

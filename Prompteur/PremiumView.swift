@@ -8,8 +8,8 @@ struct PremiumView: View {
     @State private var animateGradient = false
     
     // URLs pour les conditions et confidentialité - GitHub Pages
-    private let privacyPolicyURL = URL(string: "https://boboul-cloud.github.io/prompteur/privacy.html")!
-    private let termsOfUseURL = URL(string: "https://boboul-cloud.github.io/prompteur/terms.html")!
+    private let privacyPolicyURL = URL(string: "https://boboul-cloud.github.io/bobprompt/privacy.html")!
+    private let termsOfUseURL = URL(string: "https://boboul-cloud.github.io/bobprompt/terms.html")!
     
     var body: some View {
         NavigationView {
@@ -90,7 +90,7 @@ struct PremiumView: View {
             .scaleEffect(animateGradient ? 1.05 : 1.0)
             .animation(.easeInOut(duration: 2).repeatForever(autoreverses: true), value: animateGradient)
             
-            Text("Prompteur Premium")
+            Text("bobprompt Premium")
                 .font(Theme.roundedFont(size: 28, weight: .bold))
                 .foregroundStyle(
                     LinearGradient(

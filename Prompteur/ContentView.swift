@@ -182,7 +182,7 @@ struct ContentView: View {
     @State private var sidePadding: Double = 28
     @State private var fullScreenRead: Bool = false
     @State private var readProgress: CGFloat = 0
-    @State private var readCardFraction: Double = 0.40 // fraction of screen height for reader card
+    @State private var readCardFraction: Double = 0.75 // fraction of screen height for reader card
     @FocusState private var focusedField: EditField?
     @State private var showClearAlert: Bool = false
     @State private var isSpeaking: Bool = false
@@ -274,7 +274,7 @@ struct ContentView: View {
             // Ligne 1: Titre + Thème
             HStack {
                 HStack(spacing: 8) {
-                    Text("Prompteur")
+                    Text("bobprompt")
                         .font(Theme.roundedFont(size: 28, weight: .bold))
                         .foregroundColor(currentTheme.isDark ? .white : .primary)
                     
@@ -496,7 +496,7 @@ struct ContentView: View {
         GeometryReader { proxy in
             // Reader card height based on readCardFraction of screen height
             let h = proxy.size.height * readCardFraction
-            VStack {
+            VStack(spacing: 8) {
                 ZStack {
                     TeleprompterTextView(attributedText: .constant(attributedReader),
                                          isPlaying: $isPlaying,
@@ -515,50 +515,54 @@ struct ContentView: View {
                             readProgress = p
                         }
                     }
-                // Fades
-                VStack {
-                    let fadeH = max(8.0, min(CGFloat(h) * 0.15, 24.0))
-                    LinearGradient(colors: [backgroundTopFade, .clear], startPoint: .top, endPoint: .bottom)
-                        .frame(height: fadeH)
-                        .allowsHitTesting(false)
-                    Spacer()
-                    LinearGradient(colors: [.clear, backgroundBottomFade], startPoint: .top, endPoint: .bottom)
-                        .frame(height: fadeH)
-                        .allowsHitTesting(false)
+                    // Fades
+                    VStack {
+                        let fadeH = max(8.0, min(CGFloat(h) * 0.15, 24.0))
+                        LinearGradient(colors: [backgroundTopFade, .clear], startPoint: .top, endPoint: .bottom)
+                            .frame(height: fadeH)
+                            .allowsHitTesting(false)
+                        Spacer()
+                        LinearGradient(colors: [.clear, backgroundBottomFade], startPoint: .top, endPoint: .bottom)
+                            .frame(height: fadeH)
+                            .allowsHitTesting(false)
+                    }
                 }
-                // Full-screen toggle
+                .frame(maxWidth: .infinity)
+                .frame(height: h)
+                .background(
+                    RoundedRectangle(cornerRadius: 24, style: .continuous)
+                        .fill(.ultraThinMaterial)
+                )
+                .shadow(color: .black.opacity(0.12), radius: 16, y: 8)
+                .padding(.horizontal)
+                
+                // Progress bar under the card
+                ZStack(alignment: .leading) {
+                    Capsule().fill(Color.white.opacity(0.25))
+                    GeometryReader { gp in
+                        Capsule().fill(Theme.friendlyGreen.opacity(0.9))
+                            .frame(width: max(6, gp.size.width * readProgress))
+                    }
+                }
+                .frame(height: 4)
+                .padding(.horizontal, 24)
+                
+                // Full-screen toggle button (outside the reader card)
                 HStack {
                     Spacer()
                     Button(action: { fullScreenRead.toggle(); haptic(.light) }) {
                         Image(systemName: fullScreenRead ? "arrow.down.right.and.arrow.up.left" : "arrow.up.left.and.arrow.down.right")
-                            .foregroundColor(.white)
-                            .padding(8)
-                            .background(Circle().fill(Color.black.opacity(0.25)))
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundColor(Theme.accent)
+                            .padding(10)
+                            .background(Circle().fill(Color.white.opacity(0.9)))
+                            .shadow(color: .black.opacity(0.1), radius: 4, y: 2)
                     }
                     .buttonStyle(PlainButtonStyle())
-                    .padding(10)
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
-                }
-                .frame(maxWidth: .infinity, maxHeight: h)
-            .background(
-                RoundedRectangle(cornerRadius: 24, style: .continuous)
-                    .fill(.ultraThinMaterial)
-            )
-            .shadow(color: .black.opacity(0.12), radius: 16, y: 8)
-            .padding(.horizontal)
+                .padding(.horizontal, 24)
+            }
             .padding(.top, 60)
-            // Progress bar under the card
-            ZStack(alignment: .leading) {
-                Capsule().fill(Color.white.opacity(0.25))
-                GeometryReader { gp in
-                    Capsule().fill(Theme.friendlyGreen.opacity(0.9))
-                        .frame(width: max(6, gp.size.width * readProgress))
-                }
-            }
-            .frame(height: 4)
-            .padding(.horizontal, 24)
-            }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         }
     }
@@ -883,6 +887,20 @@ struct ContentView: View {
                 .buttonStyle(PlainButtonStyle())
             }
             .padding(.horizontal)
+            
+            // Slider vitesse vocale (tortue/lièvre) - avec animation de hauteur
+            VoiceSpeedSlider(
+                speechRate: $speechRate,
+                tintColor: currentTheme.primaryColor,
+                onRateChange: { newRate in
+                    speechSynthesizer.speechRate = Float(newRate)
+                }
+            )
+            .padding(.horizontal)
+            .frame(height: voiceEnabled ? nil : 0)
+            .opacity(voiceEnabled ? 1 : 0)
+            .clipped()
+            .animation(.easeInOut(duration: 0.25), value: voiceEnabled)
         }
         .padding(.vertical, 16)
         .padding(.horizontal, 8)
@@ -976,6 +994,44 @@ private struct ControlToggleButton: View {
             )
         }
         .buttonStyle(PlainButtonStyle())
+    }
+}
+
+// MARK: - Slider Vitesse vocale (tortue/lièvre)
+private struct VoiceSpeedSlider: View {
+    @Binding var speechRate: Double
+    let tintColor: Color
+    var onRateChange: (Double) -> Void
+    
+    var body: some View {
+        HStack(spacing: 12) {
+            // Tortue (lent)
+            Image(systemName: "tortoise.fill")
+                .font(.system(size: 18))
+                .foregroundColor(speechRate < 0.4 ? tintColor : .secondary)
+            
+            // Slider
+            Slider(value: $speechRate, in: 0.2...0.8, step: 0.05) { editing in
+                if !editing {
+                    onRateChange(speechRate)
+                }
+            }
+            .tint(tintColor)
+            .onChange(of: speechRate) { newValue in
+                onRateChange(newValue)
+            }
+            
+            // Lièvre (rapide)
+            Image(systemName: "hare.fill")
+                .font(.system(size: 18))
+                .foregroundColor(speechRate > 0.6 ? tintColor : .secondary)
+        }
+        .padding(.vertical, 8)
+        .padding(.horizontal, 12)
+        .background(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(.ultraThinMaterial)
+        )
     }
 }
 
@@ -1450,7 +1506,7 @@ private extension ContentView {
     var backgroundBottomFade: Color { 
         currentTheme.isDark ? Color.black.opacity(0.4) : Color.black.opacity(0.25) 
     }
-    var controlBarPadding: CGFloat { kidMode ? 200 : 150 }
+    var controlBarPadding: CGFloat { kidMode ? 140 : 100 }
 
     // Barre d'outils d'édition
     var editorToolbar: some View {
@@ -1707,7 +1763,7 @@ private extension ContentView {
                     }
                     HStack {
                         Text("Taille du cadre")
-                        Slider(value: $readCardFraction, in: 0.30...0.60)
+                        Slider(value: $readCardFraction, in: 0.20...0.80)
                         Text("\(Int(readCardFraction * 100)) %").monospacedDigit()
                     }
                 }
