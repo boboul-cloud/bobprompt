@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Support - Prompteur</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background: #f5f5f7;
+            color: #333;
+            line-height: 1.7;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 60px 20px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 2em;
+            margin-bottom: 8px;
+        }
+        
+        .header p {
+            opacity: 0.9;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+        
+        .content {
+            background: white;
+            border-radius: 16px;
+            padding: 40px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+        }
+        
+        h2 {
+            color: #764ba2;
+            margin: 32px 0 16px 0;
+            font-size: 1.4em;
+        }
+        
+        h2:first-child {
+            margin-top: 0;
+        }
+        
+        p {
+            margin-bottom: 16px;
+            color: #555;
+        }
+        
+        .faq-item {
+            background: #f9f9fb;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 16px;
+        }
+        
+        .faq-item h3 {
+            color: #333;
+            margin-bottom: 8px;
+            font-size: 1.1em;
+        }
+        
+        .faq-item p {
+            margin-bottom: 0;
+            color: #666;
+        }
+        
+        .contact-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 16px;
+            padding: 32px;
+            text-align: center;
+            margin-top: 32px;
+        }
+        
+        .contact-card h3 {
+            margin-bottom: 16px;
+            font-size: 1.3em;
+        }
+        
+        .contact-card a {
+            display: inline-block;
+            background: white;
+            color: #764ba2;
+            padding: 12px 32px;
+            border-radius: 25px;
+            text-decoration: none;
+            font-weight: 600;
+            margin-top: 8px;
+        }
+        
+        .contact-card a:hover {
+            transform: scale(1.02);
+        }
+        
+        .back-link {
+            display: inline-block;
+            margin-top: 32px;
+            color: #764ba2;
+            text-decoration: none;
+            font-weight: 500;
+        }
+        
+        .back-link:hover {
+            text-decoration: underline;
+        }
+        
+        .tip {
+            background: #e8f5e9;
+            border-left: 4px solid #4caf50;
+            padding: 16px;
+            margin: 16px 0;
+            border-radius: 0 8px 8px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Support</h1>
+        <p>Comment pouvons-nous vous aider ?</p>
+    </div>
+    
+    <div class="container">
+        <div class="content">
+            <h2>Questions fréquentes</h2>
+            
+            <div class="faq-item">
+                <h3>📜 Comment utiliser le téléprompteur ?</h3>
+                <p>Entrez ou collez votre texte, puis appuyez sur le bouton "Lire". Le texte défilera automatiquement. Utilisez les contrôles pour ajuster la vitesse ou mettre en pause.</p>
+            </div>
+            
+            <div class="faq-item">
+                <h3>🪞 Comment activer le mode miroir ?</h3>
+                <p>Appuyez sur le bouton "Miroir" dans la barre d'outils en bas de l'écran. Le texte sera inversé horizontalement, idéal pour une utilisation avec un vrai téléprompteur.</p>
+            </div>
+            
+            <div class="faq-item">
+                <h3>🎨 À quoi servent les syllabes colorées ?</h3>
+                <p>Cette fonctionnalité alterne les couleurs des syllabes pour faciliter la lecture, particulièrement utile pour les enfants ou les personnes ayant des difficultés de lecture.</p>
+            </div>
+            
+            <div class="faq-item">
+                <h3>💾 Comment sauvegarder mes textes ?</h3>
+                <p>Appuyez sur le bouton "Textes" pour accéder à votre bibliothèque. Vous pouvez y sauvegarder et organiser vos scripts. Note : la version gratuite est limitée à 2 textes.</p>
+            </div>
+            
+            <div class="faq-item">
+                <h3>🤖 Comment utiliser la génération IA ?</h3>
+                <p>Appuyez sur le bouton IA (étoiles). Vous devrez entrer votre propre clé API OpenAI dans les paramètres. Décrivez ensuite le contenu souhaité et l'IA le générera pour vous.</p>
+            </div>
+            
+            <div class="faq-item">
+                <h3>🔑 Où obtenir une clé API OpenAI ?</h3>
+                <p>Rendez-vous sur <a href="https://platform.openai.com/api-keys" target="_blank">platform.openai.com</a>, créez un compte, puis générez une clé API. Des frais peuvent s'appliquer selon votre utilisation.</p>
+            </div>
+            
+            <div class="faq-item">
+                <h3>👑 Comment passer à Premium ?</h3>
+                <p>Appuyez sur la bannière "Passez Premium" ou sur le badge Premium pour accéder à la page d'achat. L'achat est unique et débloque toutes les fonctionnalités à vie.</p>
+            </div>
+            
+            <div class="faq-item">
+                <h3>🔄 Comment restaurer mes achats ?</h3>
+                <p>Allez dans la page Premium et appuyez sur "Restaurer mes achats". Assurez-vous d'être connecté avec le même compte Apple utilisé lors de l'achat initial.</p>
+            </div>
+            
+            <h2>Conseils d'utilisation</h2>
+            
+            <div class="tip">
+                <p><strong>💡 Astuce :</strong> Pour une meilleure lisibilité lors de vos présentations, augmentez la taille du texte et choisissez un thème avec un bon contraste.</p>
+            </div>
+            
+            <div class="tip">
+                <p><strong>💡 Astuce :</strong> Utilisez le compte à rebours (3-2-1) pour vous préparer avant que le défilement ne commence.</p>
+            </div>
+            
+            <h2>Problèmes techniques</h2>
+            
+            <div class="faq-item">
+                <h3>L'application ne répond plus</h3>
+                <p>Fermez complètement l'application et relancez-la. Si le problème persiste, essayez de redémarrer votre appareil.</p>
+            </div>
+            
+            <div class="faq-item">
+                <h3>Mes textes ont disparu</h3>
+                <p>Les textes sont stockés localement. Si vous avez désinstallé l'application, les données peuvent avoir été supprimées. Malheureusement, nous ne pouvons pas les récupérer.</p>
+            </div>
+            
+            <div class="faq-item">
+                <h3>L'achat Premium ne fonctionne pas</h3>
+                <p>Vérifiez votre connexion internet et réessayez. Si le problème persiste, essayez de restaurer vos achats ou contactez le support Apple.</p>
+            </div>
+            
+            <div class="contact-card">
+                <h3>Besoin d'aide supplémentaire ?</h3>
+                <p>Notre équipe est là pour vous aider</p>
+                <a href="mailto:support@prompteur-app.com">📧 Nous contacter</a>
+            </div>
+            
+            <a href="index.html" class="back-link">← Retour à l'accueil</a>
+        </div>
+    </div>
+</body>
+</html>
