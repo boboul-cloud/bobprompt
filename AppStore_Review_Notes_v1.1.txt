@@ -1,0 +1,76 @@
+===============================================
+NOTES POUR L'ÉQUIPE DE VÉRIFICATION APP STORE
+===============================================
+
+Application : bobprompt
+Version : 1.1 (Build 5)
+Date : 27 janvier 2026
+
+===============================================
+NOUVELLES FONCTIONNALITÉS
+===============================================
+
+1. BOUTON DE LECTURE VOCALE PONCTUELLE 
+   - Nouveau bouton haut-parleur dans la barre de contrôle du prompteur
+   - Lit à voix haute la ligne actuellement visible dans le cadre de lecture
+   - Fonctionne sans démarrer le défilement automatique
+   - Permet aux enfants de s'entraîner sur un mot ou une phrase difficile 
+     avant de lancer le prompteur
+
+2. PERSISTANCE DES TEXTES SAUVEGARDÉS 
+   - Les textes de la bibliothèque sont maintenant conservés de façon permanente
+   - Les textes restent disponibles même après fermeture ou réinstallation 
+     de l'application
+   - Stockage sécurisé via UserDefaults
+
+3. LIMITE DE TEXTES POUR LA STABILITÉ 
+   - Mode gratuit : 2 textes maximum
+   - Mode Premium : 50 textes maximum
+   - Cette limite garantit des performances optimales et évite les 
+     ralentissements sur les appareils plus anciens
+
+4. MODE D'EMPLOI MIS À JOUR 
+   - Documentation enrichie expliquant toutes les nouvelles fonctionnalités
+   - Section dédiée aux boutons de contrôle
+
+===============================================
+INFORMATIONS TECHNIQUES
+===============================================
+
+- Achat In-App : "bobprompt Premium" (com.bobprompt.premium)
+  Type : Achat non-consommable
+  Prix : 2,99€
+
+- Pas de collecte de données utilisateur
+- Pas de connexion externe requise 
+  (sauf pour la génération IA optionnelle avec clé API fournie par l'utilisateur)
+
+===============================================
+COMMENT TESTER
+===============================================
+
+1. Lancer l'application sur l'onglet "Lire"
+
+2. Appuyer sur le bouton haut-parleur (à droite du bouton Play) 
+   → La ligne visible est lue à voix haute sans démarrer le défilement
+
+3. Aller dans "Éditer" → Écrire un texte → Appuyer sur "Enregistrer" 
+   dans la barre clavier → Vérifier qu'il apparaît dans la Bibliothèque
+
+4. Fermer complètement et rouvrir l'application 
+   → Le texte sauvegardé est toujours présent
+
+5. Essayer de sauvegarder plus de 2 textes en mode gratuit 
+   → Une alerte propose de passer Premium
+
+6. Effectuer l'achat Premium (sandbox) 
+   → La limite passe à 50 textes
+
+===============================================
+COMPTE DE TEST (si nécessaire)
+===============================================
+
+Aucun compte requis. L'application fonctionne entièrement hors-ligne.
+Pour tester l'achat In-App, utilisez un compte Sandbox.
+
+===============================================

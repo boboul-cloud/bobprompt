@@ -118,17 +118,17 @@ struct PremiumView: View {
             
             VStack(spacing: 12) {
                 BenefitRow(
-                    icon: "infinity",
+                    icon: "books.vertical.fill",
                     iconColor: .purple,
-                    title: "Textes illimités",
-                    description: "Sauvegardez autant de textes que vous voulez"
+                    title: "Jusqu'à 50 textes",
+                    description: "Sauvegardez tous vos scripts et discours"
                 )
                 
                 BenefitRow(
-                    icon: "books.vertical.fill",
+                    icon: "arrow.clockwise.icloud.fill",
                     iconColor: .blue,
-                    title: "Bibliothèque complète",
-                    description: "Organisez tous vos scripts et discours"
+                    title: "Sauvegarde persistante",
+                    description: "Vos textes sont conservés même après réinstallation"
                 )
                 
                 BenefitRow(
@@ -186,9 +186,9 @@ struct PremiumView: View {
                         }
                         .padding()
                     } else {
-                        // Produit non disponible - afficher le prix par défaut
+                        // Produit en cours de chargement ou non encore disponible
                         VStack(spacing: 8) {
-                            Text("4,99 €")
+                            Text("2,99 €")
                                 .font(.system(size: 44, weight: .bold, design: .rounded))
                                 .foregroundStyle(
                                     LinearGradient(
@@ -202,16 +202,17 @@ struct PremiumView: View {
                                 .font(Theme.roundedFont(size: 14))
                                 .foregroundColor(.secondary)
                             
-                            // Bouton pour réessayer
+                            // Bouton pour réessayer le chargement
                             Button(action: {
                                 Task {
                                     await purchaseManager.loadProducts()
                                 }
                             }) {
-                                Label("Réessayer", systemImage: "arrow.clockwise")
+                                Label("Charger le produit", systemImage: "arrow.clockwise")
                                     .font(Theme.roundedFont(size: 14))
                             }
                             .buttonStyle(.bordered)
+                            .tint(.purple)
                             .padding(.top, 8)
                         }
                     }

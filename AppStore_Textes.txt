@@ -17,7 +17,7 @@ Téléprompteur simple et fun
 ───────────────────────────────────────────────────────────
 TEXTE PROMOTIONNEL (170 caractères max)
 ───────────────────────────────────────────────────────────
-Transformez votre iPhone/iPad en téléprompteur professionnel ! Idéal pour les présentations, vidéos YouTube, discours et l'apprentissage de la lecture pour les enfants.
+Nouveau ! Surlignage de la ligne lue, voix synchronisée au défilement et mode un mot par ligne. bobprompt n'a jamais été aussi fluide et précis.
 
 
 ───────────────────────────────────────────────────────────
@@ -71,7 +71,7 @@ bobprompt a été conçu avec une attention particulière pour l'apprentissage d
  VERSION PREMIUM
 
 Débloquez tout le potentiel de bobprompt avec un achat unique :
-• Sauvegarde illimitée de textes
+• Sauvegarde jusqu'à 50 textes
 • Génération IA illimitée
 • Toutes les futures fonctionnalités incluses
 
@@ -110,6 +110,29 @@ Première version de bobprompt !
 • Génération de contenu par IA
 • Thèmes personnalisables
 • Compte à rebours 3-2-1
+
+
+───────────────────────────────────────────────────────────
+NOTES DE VERSION (v1.2)
+───────────────────────────────────────────────────────────
+• Vitesse de défilement optimisée (10 à 110 pt/s) pour un confort de lecture amélioré
+• Taille de texte par défaut augmentée pour une meilleure lisibilité
+• Compte à rebours intelligent : se déclenche uniquement au début, plus après les pauses
+• Stabilité améliorée : correction d'un blocage possible au démarrage du lecteur
+• Défilement plus fluide, même lors d'interactions tactiles
+• Taille du cadre lecteur stable avec les contrôles vocaux activés
+
+
+───────────────────────────────────────────────────────────
+NOTES DE VERSION (v1.3)
+───────────────────────────────────────────────────────────
+• Surlignage visuel de la ligne en cours de lecture
+• Voix synchronisée au défilement : la synthèse vocale suit précisément le texte affiché
+• Mode « un mot par ligne » pour une lecture ultra-guidée
+• Défilement à 120 fps, encore plus fluide et réactif
+• Pause/reprise fiables : la voix redémarre à chaque fois
+• Compte à rebours annulable (appui pendant le décompte pour arrêter)
+• Le texte démarre et termine au centre de l'écran pour un confort optimal
 
 
 ───────────────────────────────────────────────────────────

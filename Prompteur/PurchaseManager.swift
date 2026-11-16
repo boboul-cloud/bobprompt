@@ -6,7 +6,7 @@ import SwiftUI
 class PurchaseManager: ObservableObject {
     static let shared = PurchaseManager()
     
-    // ID du produit Premium (à configurer dans App Store Connect)
+    // ID du produit Premium (doit correspondre à App Store Connect)
     static let premiumProductID = "com.bobprompt.premium"
     
     @Published private(set) var isPremium: Bool = false
@@ -20,6 +20,9 @@ class PurchaseManager: ObservableObject {
     
     // Limite de textes en mode gratuit
     static let freeTextLimit = 2
+    
+    // Limite de textes en mode Premium (pour éviter les ralentissements)
+    static let premiumTextLimit = 50
     
     init() {
         // Charger l'état premium depuis UserDefaults (cache local)
@@ -62,10 +65,13 @@ class PurchaseManager: ObservableObject {
                 timeoutTask.cancel()
                 print("✅ Produits chargés: \(products.count)")
                 if products.isEmpty {
-                    loadingStatus = "Aucun produit trouvé"
-                    purchaseError = "Produit non disponible. Vérifiez la configuration StoreKit."
+                    loadingStatus = ""
+                    // Ne pas afficher d'erreur si les produits ne sont pas encore disponibles
+                    // L'utilisateur peut réessayer ou le produit sera chargé au prochain lancement
+                    print("⚠️ Aucun produit disponible - en attente de validation App Store")
                 } else {
                     loadingStatus = ""
+                    purchaseError = nil
                     for product in products {
                         print("  - \(product.id): \(product.displayPrice)")
                     }
@@ -74,8 +80,9 @@ class PurchaseManager: ObservableObject {
                 timeoutTask.cancel()
                 if Task.isCancelled {
                     print("⏱️ Timeout chargement produits")
-                    loadingStatus = "Délai dépassé"
-                    purchaseError = "Impossible de charger les produits. Vérifiez votre connexion."
+                    loadingStatus = ""
+                    // Ne pas afficher d'erreur bloquante
+                    print("⚠️ Délai dépassé lors du chargement des produits")
                 } else {
                     throw error
                 }
@@ -84,8 +91,8 @@ class PurchaseManager: ObservableObject {
             isLoading = false
         } catch {
             print("❌ Erreur chargement produits: \(error)")
-            loadingStatus = "Erreur"
-            purchaseError = "Erreur: \(error.localizedDescription)"
+            loadingStatus = ""
+            // Ne pas bloquer l'UI avec une erreur technique
             isLoading = false
         }
     }
@@ -209,7 +216,10 @@ class PurchaseManager: ObservableObject {
     }
     
     func canSaveMoreTexts(currentCount: Int) -> Bool {
-        isPremium || currentCount < PurchaseManager.freeTextLimit
+        if isPremium {
+            return currentCount < PurchaseManager.premiumTextLimit
+        }
+        return currentCount < PurchaseManager.freeTextLimit
     }
 }
 

@@ -15,7 +15,7 @@
           "locale" : "fr"
         }
       ],
-      "productID" : "com.prompteur.premium",
+      "productID" : "com.bobprompt.premium",
       "referenceName" : "Premium",
       "type" : "NonConsumable"
     }

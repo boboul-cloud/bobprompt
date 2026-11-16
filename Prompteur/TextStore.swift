@@ -16,22 +16,36 @@ enum SaveResult {
 @MainActor
 final class TextStore: ObservableObject {
     @Published private(set) var items: [SavedText] = []
-    private let key = "prompteur.savedTexts.v1"
+    private let keychainKey = "prompteur.savedTexts.v2"
+    private let userDefaultsKey = "prompteur.savedTexts.v1" // Pour migration
 
     init() { load() }
 
     func load() {
-        guard let data = UserDefaults.standard.data(forKey: key) else { items = []; return }
-        if let decoded = try? JSONDecoder().decode([SavedText].self, from: data) {
+        // Essayer d'abord le Keychain (nouvelle méthode persistante)
+        if let data = SecureStore.load(key: keychainKey),
+           let decoded = try? JSONDecoder().decode([SavedText].self, from: data) {
             items = decoded.sorted { $0.date > $1.date }
-        } else {
-            items = []
+            return
         }
+        
+        // Migration depuis UserDefaults (ancienne méthode)
+        if let data = UserDefaults.standard.data(forKey: userDefaultsKey),
+           let decoded = try? JSONDecoder().decode([SavedText].self, from: data) {
+            items = decoded.sorted { $0.date > $1.date }
+            // Migrer vers Keychain
+            saveAll()
+            // Nettoyer UserDefaults après migration
+            UserDefaults.standard.removeObject(forKey: userDefaultsKey)
+            return
+        }
+        
+        items = []
     }
 
     func saveAll() {
         if let data = try? JSONEncoder().encode(items) {
-            UserDefaults.standard.set(data, forKey: key)
+            try? SecureStore.save(key: keychainKey, data: data)
         }
     }
 
@@ -45,11 +59,16 @@ final class TextStore: ObservableObject {
         max(0, PurchaseManager.freeTextLimit - items.count)
     }
     
+    /// Nombre de textes restants en mode Premium
+    var remainingPremiumSlots: Int {
+        max(0, PurchaseManager.premiumTextLimit - items.count)
+    }
+    
     /// Ajoute un texte avec vérification de la limite
     @discardableResult
     func add(title: String, content: String) -> SaveResult {
-        // Vérifier la limite pour les utilisateurs gratuits
-        if !PurchaseManager.shared.isPremium && items.count >= PurchaseManager.freeTextLimit {
+        // Vérifier la limite (gratuit ou premium)
+        if !PurchaseManager.shared.canSaveMoreTexts(currentCount: items.count) {
             return .limitReached
         }
         

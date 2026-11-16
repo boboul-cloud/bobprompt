@@ -765,10 +765,8 @@ struct AICreationView: View {
                     await MainActor.run {
                         generated = text
                         isLoading = false
-                        // Sauvegarde clé si nouvelle
-                        if SecureStore.load(key: apiKeyStorageKey) == nil {
-                            try? SecureStore.save(key: apiKeyStorageKey, data: Data(apiKey.utf8))
-                        }
+                        // Sauvegarder la clé API
+                        try? SecureStore.save(key: apiKeyStorageKey, data: Data(apiKey.utf8))
                     }
                 } catch {
                     await MainActor.run {

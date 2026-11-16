@@ -45,11 +45,19 @@ struct HelpView: View {
                             
                             Divider().padding(.vertical, 8)
                             
+                            Text("Boutons de contrôle :")
+                                .font(Theme.roundedFont(size: 15, weight: .semibold))
+                            
+                            HelpOption(icon: "speaker.wave.3.fill", title: "Lire la ligne", description: "Lit à voix haute la ligne visible dans le cadre, sans démarrer le défilement. Idéal pour s'entraîner sur un mot difficile !")
+                            HelpOption(icon: "gearshape.fill", title: "Réglages", description: "Ouvre les paramètres de lecture (vitesse, taille, couleurs...).")
+                            
+                            Divider().padding(.vertical, 8)
+                            
                             Text("Options de lecture :")
                                 .font(Theme.roundedFont(size: 15, weight: .semibold))
                             
                             HelpOption(icon: "textformat.abc", title: "Syllabes", description: "Colorie les syllabes en alternance pour faciliter la lecture.")
-                            HelpOption(icon: "speaker.wave.2.fill", title: "Voix", description: "Active la synthèse vocale pour lire le texte à voix haute.")
+                            HelpOption(icon: "speaker.wave.2.fill", title: "Voix", description: "Active la synthèse vocale pour lire le texte à voix haute pendant le défilement.")
                             HelpOption(icon: "arrow.left.and.right.righttriangle.left.righttriangle.right", title: "Miroir", description: "Inverse le texte horizontalement (pour réflecteur).")
                             HelpOption(icon: "text.aligncenter", title: "Centrer", description: "Centre le texte au milieu de l'écran.")
                             HelpOption(icon: "arrow.up.left.and.arrow.down.right", title: "Plein écran", description: "Touchez l'icône en haut à droite du prompteur.")
@@ -116,6 +124,20 @@ struct HelpView: View {
                             HelpStep(number: 4, text: "Touchez un texte sauvegardé pour le charger dans l'éditeur.")
                             
                             HelpTip(text: "Glissez vers la gauche sur une entrée pour la supprimer.")
+                            
+                            Divider().padding(.vertical, 8)
+                            
+                            Text("Limites de stockage :")
+                                .font(Theme.roundedFont(size: 15, weight: .semibold))
+                            
+                            Text("Pour garantir des performances optimales, le nombre de textes est limité :")
+                                .font(Theme.roundedFont(size: 14))
+                                .foregroundColor(.secondary)
+                            
+                            HelpOption(icon: "person.fill", title: "Gratuit", description: "Jusqu'à 2 textes sauvegardés.")
+                            HelpOption(icon: "star.fill", title: "Premium", description: "Jusqu'à 50 textes sauvegardés.")
+                            
+                            HelpTip(text: "Vos textes sont conservés même si vous réinstallez l'application.")
                         }
                     }
                     

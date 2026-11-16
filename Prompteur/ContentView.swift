@@ -18,7 +18,14 @@ class SpeechSynthesizer: NSObject, ObservableObject {
     @Published var isSpeaking: Bool = false
     @Published var isPaused: Bool = false
     @Published var selectedVoiceIdentifier: String = ""
-    @Published var speechRate: Float = 0.5 // 0.0 à 1.0 (0.5 = normal)
+    @Published var speechRate: Float = 0.52 // 0.0 à 1.0 (0.5 = normal)
+    private var currentText: String?
+    
+    // Pour le mode synchronisé avec le prompteur
+    private var isPromptMode: Bool = false
+    private var lastReadPosition: Int = -1
+    private var pendingText: String = ""
+    private var finishCompletion: (() -> Void)?
     
     // Voix disponibles pour le français
     var availableVoices: [AVSpeechSynthesisVoice] {
@@ -39,11 +46,22 @@ class SpeechSynthesizer: NSObject, ObservableObject {
         super.init()
         delegate = SpeechDelegate(
             onFinish: { [weak self] in
-                self?.isSpeaking = false
-                self?.isPaused = false
+                guard let self = self else { return }
+                if self.isPromptMode {
+                    // Flush buffered text when utterance finishes (skip if paused)
+                    if !self.isPaused { self.flushPending() }
+                } else {
+                    self.isSpeaking = false
+                    self.isPaused = false
+                    if let completion = self.finishCompletion {
+                        self.finishCompletion = nil
+                        completion()
+                    }
+                }
             },
             onPause: { [weak self] in
-                self?.isPaused = true
+                guard let self = self else { return }
+                if !self.isPromptMode { self.isPaused = true }
             },
             onContinue: { [weak self] in
                 self?.isPaused = false
@@ -67,20 +85,81 @@ class SpeechSynthesizer: NSObject, ObservableObject {
             return
         }
         
+        isPromptMode = false
+        currentText = text
         let utterance = AVSpeechUtterance(string: text)
         utterance.voice = selectedVoice ?? AVSpeechSynthesisVoice(language: "fr-FR")
         utterance.rate = speechRate
         utterance.pitchMultiplier = 1.0
-        utterance.preUtteranceDelay = 0.2
+        utterance.preUtteranceDelay = 0.1
         
         isSpeaking = true
         isPaused = false
         synthesizer.speak(utterance)
     }
     
+    /// Start prompt mode (voice synced with scroll)
+    func startPromptMode() {
+        isPromptMode = true
+        lastReadPosition = -1
+        pendingText = ""
+        isSpeaking = true
+        isPaused = false
+    }
+    
+    /// Resume prompt mode after pause (don't reset position tracking)
+    func resumePromptMode() {
+        guard isPromptMode else {
+            startPromptMode()
+            return
+        }
+        isPaused = false
+        isSpeaking = true
+        // Back up position so the re-emitted current line is accepted
+        if lastReadPosition > 0 { lastReadPosition -= 1 }
+    }
+    
+    /// Called when a new line enters the reading frame — buffer and speak fluidly
+    func addReadingLine(_ lineText: String, at position: Int) {
+        guard isPromptMode && !isPaused else { return }
+        guard position > lastReadPosition else { return }
+        
+        let trimmed = lineText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        
+        lastReadPosition = position
+        
+        // Add to buffer
+        if !pendingText.isEmpty { pendingText += " " }
+        pendingText += trimmed
+        
+        // If synthesizer is idle, flush immediately for responsiveness
+        if !synthesizer.isSpeaking {
+            flushPending()
+        }
+        // Otherwise, onFinish delegate will flush when current utterance ends
+    }
+    
+    private func flushPending() {
+        let text = pendingText.trimmingCharacters(in: .whitespacesAndNewlines)
+        pendingText = ""
+        guard !text.isEmpty else { return }
+        
+        let utterance = AVSpeechUtterance(string: text)
+        utterance.voice = selectedVoice ?? AVSpeechSynthesisVoice(language: "fr-FR")
+        utterance.rate = speechRate
+        utterance.pitchMultiplier = 1.0
+        utterance.preUtteranceDelay = 0
+        utterance.postUtteranceDelay = 0
+        
+        synthesizer.speak(utterance)
+    }
+    
     func pause() {
-        if synthesizer.isSpeaking && !isPaused {
-            synthesizer.pauseSpeaking(at: .word)
+        isPaused = true
+        pendingText = ""
+        if synthesizer.isSpeaking {
+            synthesizer.stopSpeaking(at: .immediate)
         }
     }
     
@@ -90,10 +169,29 @@ class SpeechSynthesizer: NSObject, ObservableObject {
         }
     }
     
+    /// Finish reading smoothly (let current utterance finish, then stop)
+    func finishReading(completion: (() -> Void)? = nil) {
+        self.finishCompletion = completion
+        isPromptMode = false
+        
+        // If nothing is playing, call completion immediately
+        if !synthesizer.isSpeaking {
+            isSpeaking = false
+            finishCompletion?()
+            finishCompletion = nil
+        }
+        // Otherwise delegate onFinish will handle it
+    }
+    
     func stop() {
+        finishCompletion = nil
+        pendingText = ""
         synthesizer.stopSpeaking(at: .immediate)
         isSpeaking = false
         isPaused = false
+        isPromptMode = false
+        currentText = nil
+        lastReadPosition = -1
     }
 }
 
@@ -137,6 +235,68 @@ private class SpeechDelegate: NSObject, AVSpeechSynthesizerDelegate {
     }
 }
 
+// Simple one-shot speaker: speak text, no toggle behavior
+@MainActor
+class FrameSpeaker: NSObject, ObservableObject {
+    private let synthesizer = AVSpeechSynthesizer()
+    private var delegate: FrameSpeakerDelegate?
+    @Published var isSpeaking: Bool = false
+    var voiceIdentifier: String = ""
+    var rate: Float = 0.35
+    
+    override init() {
+        super.init()
+        delegate = FrameSpeakerDelegate { [weak self] in
+            self?.isSpeaking = false
+        }
+        synthesizer.delegate = delegate
+    }
+    
+    var selectedVoice: AVSpeechSynthesisVoice? {
+        if voiceIdentifier.isEmpty {
+            return AVSpeechSynthesisVoice.speechVoices().first { $0.language.hasPrefix("fr") }
+        }
+        return AVSpeechSynthesisVoice.speechVoices().first { $0.identifier == voiceIdentifier }
+    }
+    
+    func speak(_ text: String) {
+        guard !text.isEmpty else { return }
+        // Always stop current speech first, then speak new
+        synthesizer.stopSpeaking(at: .immediate)
+        
+        let utterance = AVSpeechUtterance(string: text)
+        utterance.voice = selectedVoice ?? AVSpeechSynthesisVoice(language: "fr-FR")
+        utterance.rate = rate
+        utterance.pitchMultiplier = 1.0
+        utterance.preUtteranceDelay = 0.05
+        
+        isSpeaking = true
+        synthesizer.speak(utterance)
+    }
+    
+    func stop() {
+        synthesizer.stopSpeaking(at: .immediate)
+        isSpeaking = false
+    }
+}
+
+private class FrameSpeakerDelegate: NSObject, AVSpeechSynthesizerDelegate {
+    private let onDone: @MainActor () -> Void
+    
+    init(onDone: @escaping @MainActor () -> Void) {
+        self.onDone = onDone
+        super.init()
+    }
+    
+    func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didFinish utterance: AVSpeechUtterance) {
+        Task { @MainActor in onDone() }
+    }
+    
+    func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didCancel utterance: AVSpeechUtterance) {
+        Task { @MainActor in onDone() }
+    }
+}
+
 // Définition déplacée ici pour être visible avant usage dans ContentView
 private enum SampleText {
     static let fr = """
@@ -147,15 +307,14 @@ Il défile tout seul et colore les sylla-bes en alternant les couleurs pour m'ai
 }
 
 struct ContentView: View {
+    // MARK: - Mode simplifié (2 modes au lieu de 4)
     enum Mode: String, CaseIterable, Identifiable { 
-        case edit = "Éditer", read = "Lire", ai = "Créer", library = "Bibliothèque"
+        case edit = "Éditer", read = "Lire"
         var id: String { rawValue }
         var icon: String {
             switch self {
             case .edit: return "pencil"
             case .read: return "play.fill"
-            case .ai: return "sparkles"
-            case .library: return "books.vertical"
             }
         }
     }
@@ -163,39 +322,50 @@ struct ContentView: View {
     @State private var mode: Mode = .read
     @State private var inputText: String = SampleText.fr
     @State private var isPlaying: Bool = false
-    @State private var speed: Double = 80 // points per second
+    @State private var speed: Double = 40 // pt/s - légèrement plus rapide par défaut
     @State private var colorSyllables: Bool = true
-    @State private var fontSize: Double = 36
+    @State private var fontSize: Double = 48
+    @State private var hasStartedOnce: Bool = false
     @State private var mirror: Bool = false
     @State private var countdownEnabled: Bool = true
     @State private var countdownValue: Int? = nil
-    @State private var showSavedSheet: Bool = false
+    @State private var countdownTimer: Timer? = nil
+    @State private var showLibrary: Bool = false // Bibliothèque en sheet
     @State private var showOptions: Bool = false
+    @State private var showAICreation: Bool = false // IA en sheet
     @StateObject private var store = TextStore()
-    @State private var kidMode: Bool = true
     @State private var textTitle: String = ""
 
     @State private var currentTheme: AppTheme = .candy
     @State private var color1: Color = .blue
     @State private var color2: Color = .pink
     @State private var centerAlign: Bool = true
+    @State private var oneWordPerLine: Bool = false
     @State private var sidePadding: Double = 28
     @State private var fullScreenRead: Bool = false
     @State private var readProgress: CGFloat = 0
-    @State private var readCardFraction: Double = 0.75 // fraction of screen height for reader card
+    @State private var readCardFraction: Double = 0.75
+    @State private var resetScrollToTop: Bool = false
+    @State private var stopAndResetScroll: Bool = false
     @FocusState private var focusedField: EditField?
     @State private var showClearAlert: Bool = false
-    @State private var isSpeaking: Bool = false
     @State private var showTranslation: Bool = false
-    @State private var voiceEnabled: Bool = false // Activer la lecture vocale
-    @State private var speechRate: Double = 0.5 // Vitesse de lecture vocale (0.0-1.0)
+    @State private var voiceEnabled: Bool = false
     @StateObject private var speechSynthesizer = SpeechSynthesizer()
-    @State private var showHelp: Bool = false // Mode d'emploi
-    @State private var showPremium: Bool = false // Page Premium
-    @State private var showLimitAlert: Bool = false // Alerte limite atteinte
+    @StateObject private var frameSpeaker = FrameSpeaker()
+    @State private var showHelp: Bool = false
+    @State private var showPremium: Bool = false
+    @State private var showLimitAlert: Bool = false
+    @State private var requestVisibleText: Bool = false
+    @State private var showSpeedControl: Bool = false // Toggle pour afficher les contrôles inline
     @EnvironmentObject private var purchaseManager: PurchaseManager
 
     enum EditField { case title, body }
+
+    /// Derive voice rate from scroll speed: 15→100 pt/s maps to 0.1→0.6 AVSpeech rate
+    private var speechRate: Double {
+        0.1 + (speed - 15) / 85.0 * 0.5
+    }
 
     private var attributed: NSAttributedString {
         let font = UIFont.systemFont(ofSize: CGFloat(fontSize), weight: .regular).withDesign(UIFontDescriptor.SystemDesign.rounded) ?? UIFont.systemFont(ofSize: CGFloat(fontSize))
@@ -209,10 +379,18 @@ struct ContentView: View {
             alignment: .natural
         )
     }
+    /// Put one word per line for better voice sync
+    private func wordPerLine(_ text: String) -> String {
+        text.components(separatedBy: .whitespacesAndNewlines)
+            .filter { !$0.isEmpty }
+            .joined(separator: "\n")
+    }
+    
     private var attributedReader: NSAttributedString {
         let font = UIFont.systemFont(ofSize: CGFloat(fontSize), weight: .regular).withDesign(UIFontDescriptor.SystemDesign.rounded) ?? UIFont.systemFont(ofSize: CGFloat(fontSize))
+        let displayText = oneWordPerLine ? wordPerLine(inputText) : inputText
         return Syllabifier.attributed(
-            text: inputText,
+            text: displayText,
             font: font,
             syllableColors: [UIColor.from(color1), UIColor.from(color2)],
             enabled: colorSyllables,
@@ -226,25 +404,23 @@ struct ContentView: View {
         ZStack {
             background.ignoresSafeArea()
             VStack(spacing: 16) {
-                if !fullScreenRead && mode != .edit && mode != .library {
-                    header
+                if !fullScreenRead && mode == .read {
+                    compactHeader
                 }
                 if !fullScreenRead {
-                    modernModePicker
+                    simplifiedModePicker
                 }
                 Group {
                     if mode == .edit { editorView }
-                    else if mode == .read { readerView }
-                    else if mode == .ai { aiView }
-                    else { libraryView }
+                    else { readerView }
                 }
                 .id(mode)
             }
-            .padding(.bottom, (mode == .read && !fullScreenRead) ? controlBarPadding : 0)
+            .padding(.bottom, (mode == .read && !fullScreenRead) ? 140 : 0)
             if let value = countdownValue { countdownOverlay(value) }
         }
         .safeAreaInset(edge: .bottom) {
-            if mode == .read && !fullScreenRead { controlBar } else { Color.clear.frame(height: 0) }
+            if mode == .read && !fullScreenRead { simplifiedControlBar } else { Color.clear.frame(height: 0) }
         }
         .alert("Effacer le texte ?", isPresented: $showClearAlert) {
             Button("Annuler", role: .cancel) {}
@@ -257,150 +433,79 @@ struct ContentView: View {
         }
         .alert("Limite atteinte", isPresented: $showLimitAlert) {
             Button("Plus tard", role: .cancel) {}
-            Button("Passer Premium") {
-                showPremium = true
-            }
+            Button("Passer Premium") { showPremium = true }
         } message: {
-            Text("Vous avez atteint la limite de \(PurchaseManager.freeTextLimit) textes en mode gratuit. Passez Premium pour sauvegarder des textes illimités !")
+            Text("Vous avez atteint la limite de \(PurchaseManager.freeTextLimit) textes. Passez Premium pour en sauvegarder plus !")
         }
-        .sheet(isPresented: $showPremium) {
-            PremiumView()
-        }
+        .sheet(isPresented: $showPremium) { PremiumView() }
+        .sheet(isPresented: $showLibrary) { librarySheet }
+        .sheet(isPresented: $showAICreation) { aiCreationSheet }
+        .sheet(isPresented: $showHelp) { HelpView() }
+        .sheet(isPresented: $showOptions) { optionsSheet }
         .translationPresentationCompat(isPresented: $showTranslation, text: inputText)
     }
-
-    private var header: some View {
-        VStack(spacing: 16) {
-            // Ligne 1: Titre + Thème
-            HStack {
-                HStack(spacing: 8) {
-                    Text("bobprompt")
-                        .font(Theme.roundedFont(size: 28, weight: .bold))
-                        .foregroundColor(currentTheme.isDark ? .white : .primary)
-                    
-                    // Badge Premium (si premium)
-                    PremiumBadge()
-                }
-                
-                Spacer()
-                
-                // Bouton thème
-                Menu {
-                    ForEach(AppTheme.allCases) { t in
-                        Button(action: { 
-                            withAnimation(.spring(response: 0.4)) {
-                                currentTheme = t 
-                            }
-                            haptic(.light)
-                        }) {
-                            Label("\(t.icon) \(t.rawValue)", systemImage: currentTheme == t ? "checkmark.circle.fill" : "circle")
-                        }
-                    }
-                } label: {
-                    Text(currentTheme.icon)
-                        .font(.title2)
-                        .padding(10)
-                        .background(
-                            Circle()
-                                .fill(.ultraThinMaterial)
-                        )
-                }
+    
+    // MARK: - Header compact pour mode lecture
+    private var compactHeader: some View {
+        HStack {
+            Text("bobprompt")
+                .font(Theme.roundedFont(size: 20, weight: .bold))
+                .lineLimit(1)
+                .fixedSize()
                 .foregroundColor(currentTheme.isDark ? .white : .primary)
-            }
             
-            // Bannière Premium (si non premium) - bien visible
-            if !purchaseManager.isPremium {
-                Button(action: { showPremium = true }) {
-                    HStack(spacing: 12) {
-                        Image(systemName: "crown.fill")
-                            .font(.system(size: 22))
-                            .foregroundColor(.yellow)
-                        
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Passez Premium")
-                                .font(Theme.roundedFont(size: 16, weight: .bold))
-                                .foregroundColor(.white)
-                            Text("Textes illimités • Achat unique")
-                                .font(Theme.roundedFont(size: 12))
-                                .foregroundColor(.white.opacity(0.8))
-                        }
-                        
-                        Spacer()
-                        
-                        Image(systemName: "chevron.right")
-                            .font(.system(size: 14, weight: .semibold))
-                            .foregroundColor(.white.opacity(0.7))
+            PremiumBadge()
+            
+            Spacer()
+            
+            // Thème
+            Menu {
+                ForEach(AppTheme.allCases) { t in
+                    Button(action: { 
+                        withAnimation(.spring(response: 0.4)) { currentTheme = t }
+                        haptic(.light)
+                    }) {
+                        Label("\(t.icon) \(t.rawValue)", systemImage: currentTheme == t ? "checkmark.circle.fill" : "circle")
                     }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 12)
-                    .background(
-                        LinearGradient(
-                            colors: [.purple, .pink, .orange],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                    )
-                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                    .shadow(color: .purple.opacity(0.3), radius: 8, y: 4)
                 }
-                .buttonStyle(PlainButtonStyle())
+            } label: {
+                Text(currentTheme.icon)
+                    .font(.title3)
+                    .padding(8)
+                    .background(Circle().fill(.ultraThinMaterial))
             }
-
-            // Ligne 2: Boutons d'action
-            HStack(spacing: 12) {
-                Button(action: { 
-                    inputText = SampleText.fr
-                    isPlaying = false
-                    haptic(.light)
-                }) {
-                    Label("Exemple", systemImage: "text.quote")
-                        .font(Theme.roundedFont(size: 14, weight: .medium))
-                }
-                .buttonStyle(.bordered)
-                .tint(currentTheme.primaryColor)
-                
-                Spacer()
-                
-                // Bouton Mode d'emploi
-                Button(action: { 
-                    showHelp = true
-                    haptic(.light)
-                }) {
-                    Label("Aide", systemImage: "questionmark.circle")
-                        .font(Theme.roundedFont(size: 14, weight: .medium))
-                }
-                .buttonStyle(.bordered)
-                .tint(currentTheme.accentColor)
+            .foregroundColor(currentTheme.isDark ? .white : .primary)
+            
+            // Aide
+            Button(action: { showHelp = true; haptic(.light) }) {
+                Image(systemName: "questionmark.circle")
+                    .font(.title3)
+                    .padding(8)
+                    .background(Circle().fill(.ultraThinMaterial))
             }
+            .foregroundColor(currentTheme.isDark ? .white : .primary)
         }
         .padding(.horizontal, 20)
-        .padding(.top, 12)
-        .sheet(isPresented: $showHelp) {
-            HelpView()
-        }
+        .padding(.top, 8)
     }
     
-    // MARK: - Mode Picker moderne
-    private var modernModePicker: some View {
-        HStack(spacing: 8) {
+    // MARK: - Mode Picker simplifié (2 modes)
+    private var simplifiedModePicker: some View {
+        HStack(spacing: 12) {
             ForEach(Mode.allCases) { m in
                 Button(action: {
-                    withAnimation(.spring(response: 0.35, dampingFraction: 0.7)) {
-                        mode = m
-                    }
+                    withAnimation(.spring(response: 0.35, dampingFraction: 0.7)) { mode = m }
+                    if m == .edit { isPlaying = false }
                     haptic(.light)
                 }) {
-                    HStack(spacing: 6) {
+                    HStack(spacing: 8) {
                         Image(systemName: m.icon)
-                            .font(.system(size: 14, weight: .semibold))
-                        if mode == m {
-                            Text(m.rawValue)
-                                .font(Theme.roundedFont(size: 14, weight: .semibold))
-                                .lineLimit(1)
-                        }
+                            .font(.system(size: 16, weight: .semibold))
+                        Text(m.rawValue)
+                            .font(Theme.roundedFont(size: 16, weight: .semibold))
                     }
-                    .padding(.horizontal, mode == m ? 16 : 12)
-                    .padding(.vertical, 12)
+                    .padding(.horizontal, 24)
+                    .padding(.vertical, 14)
                     .foregroundColor(mode == m ? .white : (currentTheme.isDark ? .white.opacity(0.8) : .primary))
                     .background(
                         Capsule()
@@ -423,105 +528,263 @@ struct ContentView: View {
     }
 
     private var editorView: some View {
-        ScrollView(showsIndicators: false) {
-            VStack(spacing: 22) {
-                // Barre d'outils d'édition
-                editorToolbar
+        VStack(spacing: 0) {
+            // Quick actions bar
+            HStack(spacing: 10) {
+                // Bibliothèque
+                Button(action: { showLibrary = true; haptic(.light) }) {
+                    Label("Textes", systemImage: "books.vertical.fill")
+                        .font(Theme.roundedFont(size: 13, weight: .medium))
+                }
+                .buttonStyle(.bordered)
+                .tint(currentTheme.primaryColor)
                 
-                // Title field card (placeholder + focus)
-                ZStack(alignment: .leading) {
-                    if textTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                        Text("Titre")
-                            .foregroundColor(.secondary)
-                            .padding(.leading, 18)
-                    }
-                    TextField("", text: $textTitle)
-                        .font(Theme.roundedFont(size: 22, weight: .semibold))
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 14)
-                        .focused($focusedField, equals: .title)
-                        .submitLabel(.next)
-                        .onSubmit { focusedField = .body }
-                        .accessibilityLabel("Titre")
+                // Créer avec IA
+                Button(action: { showAICreation = true; haptic(.light) }) {
+                    Label("IA", systemImage: "sparkles")
+                        .font(Theme.roundedFont(size: 13, weight: .medium))
                 }
-                .background(
-                    RoundedRectangle(cornerRadius: 18, style: .continuous)
-                        .fill(Color.white.opacity(0.95))
-                )
-                .shadow(color: .black.opacity(0.06), radius: 10, y: 4)
-                .padding(.horizontal)
-
-                // Main editor card (no preview, clean and spacious)
-                ZStack(alignment: .topLeading) {
-                    TextEditor(text: $inputText)
-                        .font(Theme.roundedFont(size: CGFloat(fontSize)))
-                        .padding(16)
-                        .frame(minHeight: 320)
-                        .focused($focusedField, equals: .body)
-                    if inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                        Text("Écrivez ou collez votre texte ici…")
-                            .foregroundColor(.secondary)
-                            .padding(.top, 24)
-                            .padding(.leading, 24)
-                            .allowsHitTesting(false)
-                    }
+                .buttonStyle(.bordered)
+                .tint(.purple)
+                
+                // Exemple
+                Button(action: { 
+                    inputText = SampleText.fr
+                    isPlaying = false
+                    haptic(.light)
+                }) {
+                    Label("Exemple", systemImage: "text.quote")
+                        .font(Theme.roundedFont(size: 13, weight: .medium))
                 }
-                .background(
-                    RoundedRectangle(cornerRadius: 22, style: .continuous)
-                        .fill(Color.white.opacity(0.98))
-                )
-                .shadow(color: .black.opacity(0.08), radius: 12, y: 6)
-                .padding(.horizontal)
-                .padding(.bottom, 20)
+                .buttonStyle(.bordered)
+                .tint(currentTheme.accentColor)
+                
+                Spacer()
+                
+                // Premium
+                if !purchaseManager.isPremium {
+                    Button(action: { showPremium = true; haptic(.light) }) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "crown.fill")
+                                .font(.system(size: 11))
+                                .foregroundColor(.yellow)
+                            Text("Premium")
+                                .font(Theme.roundedFont(size: 12, weight: .medium))
+                        }
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(.purple.opacity(0.8))
+                }
             }
-            .padding(.top, 10)
-            .padding(.bottom, 30)
+            .padding(.horizontal)
+            .padding(.top, 8)
+            .padding(.bottom, 12)
+            
+            // Title field
+            ZStack(alignment: .leading) {
+                if textTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    Text("Titre (optionnel)")
+                        .foregroundColor(.secondary)
+                        .padding(.leading, 18)
+                }
+                TextField("", text: $textTitle)
+                    .font(Theme.roundedFont(size: 20, weight: .semibold))
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+                    .focused($focusedField, equals: .title)
+                    .submitLabel(.next)
+                    .onSubmit { focusedField = .body }
+            }
+            .background(
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .fill(Color.white.opacity(0.95))
+            )
+            .shadow(color: .black.opacity(0.05), radius: 8, y: 3)
+            .padding(.horizontal)
+            .padding(.bottom, 10)
+
+            // Main editor
+            ZStack(alignment: .topLeading) {
+                TextEditor(text: $inputText)
+                    .font(Theme.roundedFont(size: CGFloat(fontSize) * 0.65)) // Slightly smaller in edit
+                    .scrollContentBackgroundHiddenCompat()
+                    .padding(14)
+                    .focused($focusedField, equals: .body)
+                if inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    Text("Écrivez ou collez votre texte ici…")
+                        .foregroundColor(.secondary)
+                        .padding(.top, 22)
+                        .padding(.leading, 22)
+                        .allowsHitTesting(false)
+                }
+            }
+            .background(
+                RoundedRectangle(cornerRadius: 20, style: .continuous)
+                    .fill(Color.white.opacity(0.98))
+            )
+            .shadow(color: .black.opacity(0.06), radius: 10, y: 5)
+            .padding(.horizontal)
+            .padding(.bottom, 16)
         }
-        .scrollDismissesKeyboardCompatInteractively()
         .toolbar {
             ToolbarItemGroup(placement: .keyboard) {
-                Button("Terminer") { focusedField = nil }
+                Button("OK") { focusedField = nil }
                 Spacer()
                 Button(role: .destructive) { showClearAlert = true } label: {
-                    Label("Effacer", systemImage: "trash")
+                    Image(systemName: "trash")
                 }
-                Button {
-                    saveCurrentText()
-                } label: { Label("Enregistrer", systemImage: "square.and.arrow.down") }
+                Button { saveCurrentText() } label: {
+                    Image(systemName: "square.and.arrow.down")
+                }
             }
         }
+    }
+    
+    // MARK: - Library Sheet
+    private var librarySheet: some View {
+        NavigationView {
+            VStack(spacing: 0) {
+                // Save current text section
+                if !inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("Texte actuel")
+                            .font(Theme.roundedFont(size: 14, weight: .semibold))
+                            .foregroundColor(.secondary)
+                        
+                        HStack {
+                            TextField("Titre", text: $textTitle)
+                                .textFieldStyle(.roundedBorder)
+                                .font(Theme.roundedFont(size: 15))
+                            
+                            Button(action: { saveCurrentText(); haptic(.rigid) }) {
+                                Image(systemName: "plus.circle.fill")
+                                    .font(.title2)
+                            }
+                            .tint(Theme.friendlyGreen)
+                        }
+                        
+                        Text(inputText.prefix(80) + (inputText.count > 80 ? "…" : ""))
+                            .font(Theme.roundedFont(size: 12))
+                            .foregroundColor(.secondary)
+                            .lineLimit(2)
+                    }
+                    .padding()
+                    .background(Color(.systemGray6))
+                }
+                
+                // Saved texts list
+                List {
+                    if store.items.isEmpty {
+                        Text("Aucun texte sauvegardé")
+                            .foregroundColor(.secondary)
+                            .frame(maxWidth: .infinity, alignment: .center)
+                            .listRowBackground(Color.clear)
+                    } else {
+                        ForEach(store.items) { item in
+                            Button {
+                                inputText = item.content
+                                textTitle = item.title
+                                showLibrary = false
+                                haptic(.light)
+                            } label: {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(item.title)
+                                        .font(Theme.roundedFont(size: 16, weight: .semibold))
+                                        .foregroundColor(.primary)
+                                    Text(DateFormatter.shortDate.string(from: item.date))
+                                        .font(Theme.roundedFont(size: 11))
+                                        .foregroundColor(.secondary)
+                                    Text(item.content.prefix(60) + (item.content.count > 60 ? "…" : ""))
+                                        .font(Theme.roundedFont(size: 12))
+                                        .foregroundColor(.secondary)
+                                        .lineLimit(1)
+                                }
+                                .padding(.vertical, 4)
+                            }
+                        }
+                        .onDelete { store.remove(at: $0) }
+                    }
+                }
+                .listStyle(.insetGrouped)
+            }
+            .navigationTitle("Bibliothèque")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) { EditButton() }
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("OK") { showLibrary = false }
+                }
+            }
+        }
+    }
+    
+    // MARK: - AI Creation Sheet
+    private var aiCreationSheet: some View {
+        AICreationInlineView(onInsert: { newText in
+            inputText = newText
+            showAICreation = false
+            haptic(.rigid)
+        }, onClose: {
+            showAICreation = false
+            haptic(.light)
+        })
     }
 
     private var readerView: some View {
         GeometryReader { proxy in
-            // Reader card height based on readCardFraction of screen height
-            // On iPad, limit to a reasonable size
             let isIPad = UIDevice.current.userInterfaceIdiom == .pad
             let maxWidth: CGFloat = isIPad ? 600 : .infinity
-            let effectiveFraction = isIPad ? min(readCardFraction, 0.35) : readCardFraction
+            let effectiveFraction = isIPad ? min(readCardFraction, 0.4) : readCardFraction
             let h = proxy.size.height * effectiveFraction
-            VStack(spacing: 8) {
+            
+            VStack(spacing: 10) {
+                // Inline controls (speed + size) - toggle visibility
+                if showSpeedControl && !isPlaying {
+                    inlineControls
+                        .transition(.opacity.combined(with: .move(edge: .top)))
+                }
+                
                 ZStack {
                     TeleprompterTextView(attributedText: .constant(attributedReader),
                                          isPlaying: $isPlaying,
                                          speed: CGFloat(speed),
                                          mirror: mirror,
-                                         sidePadding: CGFloat(sidePadding)) {
-                        DispatchQueue.main.async { [self] in
+                                         sidePadding: CGFloat(sidePadding),
+                                         onFinished: {
+                        DispatchQueue.main.async {
                             isPlaying = false
-                            // Arrêter la lecture vocale si elle est active
+                            hasStartedOnce = false
                             if voiceEnabled {
-                                speechSynthesizer.stop()
+                                speechSynthesizer.finishReading {
+                                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                                        self.resetScrollToTop = true
+                                    }
+                                }
+                            } else {
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                                    resetScrollToTop = true
+                                }
                             }
                         }
-                    } onProgress: { p in
+                    }, onProgress: { p in
+                        DispatchQueue.main.async { readProgress = p }
+                    }, onReadingLineChanged: { lineText, position in
                         DispatchQueue.main.async {
-                            readProgress = p
+                            if voiceEnabled {
+                                speechSynthesizer.addReadingLine(lineText, at: position)
+                            }
                         }
-                    }
+                    }, resetToTop: $resetScrollToTop,
+                                         stopAndReset: $stopAndResetScroll,
+                                         requestVisibleText: $requestVisibleText,
+                                         onVisibleTextExtracted: { text in
+                        // Direct call — no async bounce needed
+                        speakFrameText(text)
+                    })
+                    
                     // Fades
                     VStack {
-                        let fadeH = max(8.0, min(CGFloat(h) * 0.15, 24.0))
+                        let fadeH = max(8.0, min(h * 0.12, 20.0))
                         LinearGradient(colors: [backgroundTopFade, .clear], startPoint: .top, endPoint: .bottom)
                             .frame(height: fadeH)
                             .allowsHitTesting(false)
@@ -537,506 +800,247 @@ struct ContentView: View {
                     RoundedRectangle(cornerRadius: 24, style: .continuous)
                         .fill(.ultraThinMaterial)
                 )
-                .shadow(color: .black.opacity(0.12), radius: 16, y: 8)
+                .shadow(color: .black.opacity(0.1), radius: 14, y: 6)
                 .padding(.horizontal)
-                .frame(maxWidth: .infinity) // Center on iPad
+                .frame(maxWidth: .infinity)
                 
-                // Progress bar under the card
+                // Progress bar
                 ZStack(alignment: .leading) {
                     Capsule().fill(Color.white.opacity(0.25))
                     GeometryReader { gp in
                         Capsule().fill(Theme.friendlyGreen.opacity(0.9))
-                            .frame(width: max(6, gp.size.width * readProgress))
+                            .frame(width: max(4, gp.size.width * readProgress))
                     }
                 }
                 .frame(height: 4)
                 .padding(.horizontal, 24)
                 
-                // Full-screen toggle button (outside the reader card)
+                // Full-screen button
                 HStack {
                     Spacer()
                     Button(action: { fullScreenRead.toggle(); haptic(.light) }) {
                         Image(systemName: fullScreenRead ? "arrow.down.right.and.arrow.up.left" : "arrow.up.left.and.arrow.down.right")
-                            .font(.system(size: 16, weight: .semibold))
+                            .font(.system(size: 14, weight: .semibold))
                             .foregroundColor(Theme.accent)
-                            .padding(10)
+                            .padding(8)
                             .background(Circle().fill(Color.white.opacity(0.9)))
-                            .shadow(color: .black.opacity(0.1), radius: 4, y: 2)
+                            .shadow(color: .black.opacity(0.08), radius: 3, y: 1)
                     }
                     .buttonStyle(PlainButtonStyle())
                 }
                 .padding(.horizontal, 24)
             }
-            .padding(.top, 60)
+            .padding(.top, 50)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         }
     }
-
-    // Nouvelle vue IA
-    private var aiView: some View {
-        AICreationInlineView(onInsert: { newText in
-            inputText = newText
-            mode = .edit
-            haptic(.rigid)
-        }, onClose: {
-            mode = .edit
-            haptic(.light)
-        })
-    }
-    // Vue Bibliothèque (mode .library)
-    private var libraryView: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            HStack {
-                Text("Bibliothèque")
-                    .font(Theme.roundedFont(size: 30, weight: .bold))
-                Spacer()
-                Button { mode = .edit } label: {
-                    Label("Retour", systemImage: "chevron.left")
-                }
-                .buttonStyle(DefaultButtonStyle())
-            }
-            .padding(.horizontal)
-
-            // Bloc ajout du texte courant
-            VStack(alignment: .leading, spacing: 14) {
-                Text("Ajouter le texte courant")
-                    .font(Theme.roundedFont(size: 18, weight: .semibold))
-                TextField("Titre", text: $textTitle)
-                    .textFieldStyle(.roundedBorder)
-                    .font(Theme.roundedFont(size: 16))
-                HStack {
-                    Button(action: { saveCurrentText() }) {
-                        Label("Ajouter à la bibliothèque", systemImage: "plus.circle.fill")
-                            .font(Theme.roundedFont(size: 16, weight: .semibold))
-                    }
-                    .buttonStyle(DefaultButtonStyle())
-                    .tint(Theme.friendlyGreen)
-                    .disabled(inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                    Spacer()
-                    Button(action: {
-                        inputText = ""
-                        haptic(.light)
-                    }) {
-                        Label("Vider", systemImage: "trash")
-                            .font(Theme.roundedFont(size: 14, weight: .semibold))
-                    }
-                    .buttonStyle(DefaultButtonStyle())
-                    .tint(Theme.accent)
-                    .disabled(inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                }
-                ScrollView {
-                    Text(inputText.isEmpty ? "(Texte vide)" : inputText)
-                        .font(Theme.roundedFont(size: 14))
-                        .foregroundColor(.secondary)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                }
-                .frame(minHeight: 140)
-            }
-            .padding(16)
-            .background(RoundedRectangle(cornerRadius: 18, style: .continuous).fill(Color.white.opacity(0.95)))
-            .shadow(color: .black.opacity(0.08), radius: 10, y: 4)
-            .padding(.horizontal)
-
-            // Liste des entrées
-            VStack(alignment: .leading, spacing: 8) {
-                HStack {
-                    Text("Mes entrées (") + Text("\(store.items.count)").monospacedDigit() + Text(")")
-                        .font(Theme.roundedFont(size: 18, weight: .bold))
-                    Spacer()
-                    
-                    // Indicateur de limite pour utilisateurs gratuits
-                    if !purchaseManager.isPremium {
-                        Text("\(store.items.count)/\(PurchaseManager.freeTextLimit)")
-                            .font(Theme.roundedFont(size: 14, weight: .semibold))
-                            .foregroundColor(store.items.count >= PurchaseManager.freeTextLimit ? .red : .secondary)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
-                            .background(
-                                Capsule()
-                                    .fill(store.items.count >= PurchaseManager.freeTextLimit ? Color.red.opacity(0.1) : Color.secondary.opacity(0.1))
-                            )
-                    }
-                    
-                    if !store.items.isEmpty {
-                        EditButton()
-                    }
-                }
+    
+    // MARK: - Inline Controls (Speed + Size)
+    private var inlineControls: some View {
+        VStack(spacing: 12) {
+            // Speed slider
+            HStack(spacing: 10) {
+                Image(systemName: "tortoise.fill")
+                    .foregroundColor(speed < 30 ? currentTheme.primaryColor : .secondary)
+                    .font(.system(size: 14))
                 
-                // Bannière Premium si limite atteinte
-                if !purchaseManager.isPremium && store.items.count >= PurchaseManager.freeTextLimit {
-                    Button(action: { showPremium = true }) {
-                        HStack(spacing: 12) {
-                            Image(systemName: "crown.fill")
-                                .font(.system(size: 20))
-                                .foregroundColor(.orange)
-                            
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("Limite atteinte")
-                                    .font(Theme.roundedFont(size: 14, weight: .bold))
-                                Text("Passez Premium pour des textes illimités")
-                                    .font(Theme.roundedFont(size: 12))
-                                    .foregroundColor(.secondary)
-                            }
-                            
-                            Spacer()
-                            
-                            Image(systemName: "chevron.right")
-                                .foregroundColor(.secondary)
-                        }
-                        .padding()
-                        .background(
-                            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                .fill(
-                                    LinearGradient(
-                                        colors: [.orange.opacity(0.1), .pink.opacity(0.1)],
-                                        startPoint: .leading,
-                                        endPoint: .trailing
-                                    )
-                                )
-                        )
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                .stroke(Color.orange.opacity(0.3), lineWidth: 1)
-                        )
+                Slider(value: $speed, in: 15...100, step: 5)
+                    .tint(currentTheme.primaryColor)
+                    .onChange(of: speed) { _ in
+                        speechSynthesizer.speechRate = Float(speechRate)
                     }
-                    .buttonStyle(PlainButtonStyle())
-                    .padding(.vertical, 4)
-                }
                 
-                if store.items.isEmpty {
-                    Text("Aucune entrée enregistrée pour l'instant.")
-                        .font(Theme.roundedFont(size: 14))
-                        .foregroundColor(.secondary)
-                        .padding(.horizontal)
-                } else {
-                    List {
-                        ForEach(store.items) { item in
-                            VStack(alignment: .leading, spacing: 6) {
-                                HStack(alignment: .center) {
-                                    Text(item.title)
-                                        .font(Theme.roundedFont(size: 16, weight: .semibold))
-                                        .lineLimit(1)
-                                    Spacer()
-                                    Button {
-                                        inputText = item.content
-                                        textTitle = item.title
-                                        mode = .edit
-                                        haptic(.rigid)
-                                    } label: {
-                                        Image(systemName: "square.and.arrow.down.on.square")
-                                            .foregroundColor(Theme.primary)
-                                            .imageScale(.medium)
-                                    }
-                                    .buttonStyle(PlainButtonStyle())
-                                    .accessibilityLabel("Charger dans l'éditeur")
-                                }
-                                Text(DateFormatter.longDateTime.string(from: item.date))
-                                    .font(Theme.roundedFont(size: 12))
-                                    .foregroundColor(.secondary)
-                                let preview = item.content.trimmingCharacters(in: .whitespacesAndNewlines)
-                                if !preview.isEmpty {
-                                    Text(preview.count > 140 ? String(preview.prefix(140)) + "…" : preview)
-                                        .font(Theme.roundedFont(size: 12))
-                                        .foregroundColor(.secondary)
-                                }
-                            }
-                            .padding(.vertical, 4)
-                        }
-                        .onDelete { store.remove(at: $0) }
-                    }
-                    .listStyle(.insetGrouped)
-                }
+                Image(systemName: "hare.fill")
+                    .foregroundColor(speed > 70 ? currentTheme.primaryColor : .secondary)
+                    .font(.system(size: 14))
+                
+                Text("\(Int(speed))")
+                    .font(Theme.roundedFont(size: 12, weight: .medium))
+                    .monospacedDigit()
+                    .frame(width: 28)
             }
-            .padding(.horizontal)
-            Spacer(minLength: 0)
+            
+            // Font size slider
+            HStack(spacing: 10) {
+                Image(systemName: "textformat.size.smaller")
+                    .foregroundColor(.secondary)
+                    .font(.system(size: 12))
+                
+                Slider(value: $fontSize, in: 28...60, step: 2)
+                    .tint(currentTheme.accentColor)
+                
+                Image(systemName: "textformat.size.larger")
+                    .foregroundColor(.secondary)
+                    .font(.system(size: 14))
+                
+                Text("\(Int(fontSize))")
+                    .font(Theme.roundedFont(size: 12, weight: .medium))
+                    .monospacedDigit()
+                    .frame(width: 28)
+            }
         }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 10)
+        .background(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(.ultraThinMaterial)
+        )
+        .padding(.horizontal, 16)
     }
-
-    private var controlBar: some View {
-        VStack(spacing: 16) {
-            // Bouton Play/Pause central avec effet moderne
-            HStack(spacing: 20) {
-                // Bouton Stop
+    // MARK: - Simplified Control Bar
+    private var simplifiedControlBar: some View {
+        VStack(spacing: 14) {
+            // Main controls row
+            HStack(spacing: 16) {
+                // Stop button
                 Button(action: { 
+                    cancelCountdown()
                     isPlaying = false
-                    // Arrêter aussi la lecture vocale
-                    if voiceEnabled {
-                        speechSynthesizer.stop()
-                    }
+                    stopAndResetScroll = true
+                    speechSynthesizer.stop()
+                    frameSpeaker.stop()
+                    hasStartedOnce = false
                     haptic(.light) 
                 }) {
                     Image(systemName: "stop.fill")
-                        .font(.system(size: 20, weight: .bold))
+                        .font(.system(size: 18, weight: .bold))
                         .foregroundColor(.white)
-                        .frame(width: 50, height: 50)
-                        .background(
-                            Circle()
-                                .fill(Theme.accent.opacity(0.9))
-                        )
-                        .shadow(color: Theme.accent.opacity(0.3), radius: 8, y: 4)
+                        .frame(width: 44, height: 44)
+                        .background(Circle().fill(Theme.accent.opacity(0.85)))
+                        .shadow(color: Theme.accent.opacity(0.2), radius: 6, y: 3)
                 }
                 .buttonStyle(PlainButtonStyle())
 
-                // Bouton Play/Pause principal
-                Button(action: { 
-                    handlePlayPause()
-                    haptic(.medium) 
-                }) {
+                // Play/Pause (main button)
+                Button(action: { handlePlayPause(); haptic(.medium) }) {
                     ZStack {
-                        // Cercle extérieur animé
                         Circle()
                             .stroke(
-                                LinearGradient(
-                                    colors: [currentTheme.primaryColor, currentTheme.accentColor],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                ),
-                                lineWidth: 4
+                                LinearGradient(colors: [currentTheme.primaryColor, currentTheme.accentColor], startPoint: .topLeading, endPoint: .bottomTrailing),
+                                lineWidth: 3
                             )
-                            .frame(width: 88, height: 88)
-                            .scaleEffect(isPlaying ? 1.1 : 1.0)
+                            .frame(width: 72, height: 72)
+                            .scaleEffect(isPlaying ? 1.08 : 1.0)
                             .opacity(isPlaying ? 0.5 : 1.0)
-                            .animation(.easeInOut(duration: 1.0).repeatForever(autoreverses: true), value: isPlaying)
+                            .animation(.easeInOut(duration: 0.8).repeatForever(autoreverses: true), value: isPlaying)
                         
-                        // Cercle principal
                         Image(systemName: isPlaying ? "pause.fill" : "play.fill")
-                            .font(.system(size: 32, weight: .bold))
+                            .font(.system(size: 26, weight: .bold))
                             .foregroundColor(.white)
-                            .frame(width: 78, height: 78)
+                            .frame(width: 64, height: 64)
                             .background(
-                                Circle()
-                                    .fill(
-                                        LinearGradient(
-                                            colors: [currentTheme.primaryColor, currentTheme.accentColor.opacity(0.8)],
-                                            startPoint: .topLeading,
-                                            endPoint: .bottomTrailing
-                                        )
-                                    )
+                                Circle().fill(
+                                    LinearGradient(colors: [currentTheme.primaryColor, currentTheme.accentColor.opacity(0.8)], startPoint: .topLeading, endPoint: .bottomTrailing)
+                                )
                             )
-                            .shadow(color: currentTheme.primaryColor.opacity(0.4), radius: 12, y: 6)
-                            .scaleEffect(isPlaying ? 0.95 : 1.0)
-                            .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isPlaying)
+                            .shadow(color: currentTheme.primaryColor.opacity(0.35), radius: 10, y: 5)
                     }
                 }
                 .buttonStyle(PlainButtonStyle())
-                .accessibilityLabel(isPlaying ? "Pause" : "Lecture")
 
-                // Bouton Options
+                // Speak visible text (disabled during playback to avoid audio conflict)
+                Button(action: { requestSpeakVisibleText(); haptic(.light) }) {
+                    Image(systemName: frameSpeaker.isSpeaking ? "speaker.slash.fill" : "speaker.wave.2.fill")
+                        .font(.system(size: 18, weight: .bold))
+                        .foregroundColor(frameSpeaker.isSpeaking ? .white : (currentTheme.isDark ? .white : .primary))
+                        .frame(width: 44, height: 44)
+                        .background(
+                            ZStack {
+                                Circle().fill(.ultraThinMaterial)
+                                if frameSpeaker.isSpeaking {
+                                    Circle().fill(Theme.primary.opacity(0.85))
+                                }
+                            }
+                        )
+                        .shadow(color: .black.opacity(0.08), radius: 5, y: 2)
+                        .opacity(isPlaying ? 0.4 : 1.0)
+                }
+                .buttonStyle(PlainButtonStyle())
+                .disabled(isPlaying)
+                
+                // Settings toggle (speed/size)
+                Button(action: { 
+                    withAnimation(.spring(response: 0.3)) { showSpeedControl.toggle() }
+                    haptic(.light)
+                }) {
+                    Image(systemName: "slider.horizontal.3")
+                        .font(.system(size: 18, weight: .bold))
+                        .foregroundColor(showSpeedControl ? .white : (currentTheme.isDark ? .white : .primary))
+                        .frame(width: 44, height: 44)
+                        .background(
+                            ZStack {
+                                Circle().fill(.ultraThinMaterial)
+                                if showSpeedControl {
+                                    Circle().fill(currentTheme.primaryColor)
+                                }
+                            }
+                        )
+                        .shadow(color: .black.opacity(0.08), radius: 5, y: 2)
+                }
+                .buttonStyle(PlainButtonStyle())
+                
+                // More options
                 Button(action: { showOptions = true }) {
                     Image(systemName: "gearshape.fill")
-                        .font(.system(size: 20, weight: .bold))
+                        .font(.system(size: 18, weight: .bold))
                         .foregroundColor(currentTheme.isDark ? .white : .primary)
-                        .frame(width: 50, height: 50)
-                        .background(
-                            Circle()
-                                .fill(.ultraThinMaterial)
-                        )
-                        .shadow(color: .black.opacity(0.1), radius: 8, y: 4)
+                        .frame(width: 44, height: 44)
+                        .background(Circle().fill(.ultraThinMaterial))
+                        .shadow(color: .black.opacity(0.08), radius: 5, y: 2)
                 }
                 .buttonStyle(PlainButtonStyle())
             }
 
-            // Contrôles rapides avec design moderne
-            HStack(spacing: 12) {
-                // Syllabes
-                ControlToggleButton(
-                    icon: "textformat.abc",
-                    label: "Syllabes",
-                    isOn: $colorSyllables,
-                    tintColor: currentTheme.primaryColor
-                )
-                
-                // Lecture vocale
-                ControlToggleButton(
-                    icon: "speaker.wave.2.fill",
-                    label: "Voix",
-                    isOn: $voiceEnabled,
-                    tintColor: currentTheme.primaryColor
-                )
-                
-                // Miroir
-                ControlToggleButton(
-                    icon: "arrow.left.and.right.righttriangle.left.righttriangle.right",
-                    label: "Miroir",
-                    isOn: $mirror,
-                    tintColor: currentTheme.primaryColor
-                )
-                
-                // Centrer
-                ControlToggleButton(
-                    icon: "text.aligncenter",
-                    label: "Centrer",
-                    isOn: $centerAlign,
-                    tintColor: currentTheme.primaryColor
-                )
-                
-                // Bibliothèque
-                Button {
-                    showSavedSheet = true
-                    haptic(.light)
-                } label: {
-                    VStack(spacing: 4) {
-                        Image(systemName: "books.vertical.fill")
-                            .font(.system(size: 18))
-                        Text("Textes")
-                            .font(Theme.roundedFont(size: 10, weight: .medium))
-                    }
-                    .foregroundColor(currentTheme.isDark ? .white.opacity(0.8) : .primary.opacity(0.7))
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 10)
-                    .background(
-                        RoundedRectangle(cornerRadius: 12, style: .continuous)
-                            .fill(.ultraThinMaterial)
-                    )
-                }
-                .buttonStyle(PlainButtonStyle())
+            // Quick toggles row
+            HStack(spacing: 10) {
+                QuickToggle(icon: "textformat.abc", label: "Syllabes", isOn: $colorSyllables, tint: currentTheme.primaryColor)
+                QuickToggle(icon: "speaker.wave.2.fill", label: "Voix", isOn: $voiceEnabled, tint: currentTheme.primaryColor)
+                QuickToggle(icon: "arrow.left.and.right.righttriangle.left.righttriangle.right", label: "Miroir", isOn: $mirror, tint: currentTheme.primaryColor)
+                QuickToggle(icon: "text.aligncenter", label: "Centrer", isOn: $centerAlign, tint: currentTheme.primaryColor)
+                QuickToggle(icon: "text.word.spacing", label: "1 mot", isOn: $oneWordPerLine, tint: currentTheme.primaryColor)
             }
-            .padding(.horizontal)
+            .padding(.horizontal, 8)
             
-            // Slider vitesse vocale (tortue/lièvre) - avec animation de hauteur
-            VoiceSpeedSlider(
-                speechRate: $speechRate,
-                tintColor: currentTheme.primaryColor,
-                onRateChange: { newRate in
-                    speechSynthesizer.speechRate = Float(newRate)
-                }
-            )
-            .padding(.horizontal)
-            .frame(height: voiceEnabled ? nil : 0)
-            .opacity(voiceEnabled ? 1 : 0)
-            .clipped()
-            .animation(.easeInOut(duration: 0.25), value: voiceEnabled)
+
         }
-        .padding(.vertical, 16)
-        .padding(.horizontal, 8)
+        .padding(.vertical, 14)
+        .padding(.horizontal, 12)
         .background(
-            RoundedRectangle(cornerRadius: 28, style: .continuous)
+            RoundedRectangle(cornerRadius: 26, style: .continuous)
                 .fill(.ultraThinMaterial)
-                .shadow(color: .black.opacity(0.15), radius: 20, y: -5)
+                .shadow(color: .black.opacity(0.12), radius: 16, y: -4)
         )
         .padding(.horizontal, 8)
-        .sheet(isPresented: $showSavedSheet) {
-            savedTextsSheet
-        }
-        .sheet(isPresented: $showOptions) { optionsSheet }
-    }
-    
-    // MARK: - Sheet pour textes sauvegardés
-    private var savedTextsSheet: some View {
-        NavigationView {
-            List {
-                ForEach(store.items) { item in
-                    Button {
-                        inputText = item.content
-                        showSavedSheet = false
-                        isPlaying = false
-                        haptic(.light)
-                    } label: {
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text(item.title)
-                                .font(Theme.roundedFont(size: 18, weight: .semibold))
-                            Text(DateFormatter.longDateTime.string(from: item.date))
-                                .font(Theme.roundedFont(size: 12))
-                                .foregroundColor(.secondary)
-                            let preview = item.content.trimmingCharacters(in: .whitespacesAndNewlines)
-                            if !preview.isEmpty {
-                                Text(preview.count > 100 ? String(preview.prefix(100)) + "…" : preview)
-                                    .font(Theme.roundedFont(size: 13))
-                                    .foregroundColor(.secondary)
-                                    .lineLimit(2)
-                            }
-                        }
-                        .padding(.vertical, 4)
-                    }
-                    .foregroundColor(.primary)
-                }
-                .onDelete { store.remove(at: $0) }
-            }
-            .navigationTitle("Mes textes")
-            .navigationBarTitleDisplayMode(.large)
-            .toolbar { 
-                ToolbarItem(placement: .navigationBarLeading) {
-                    EditButton()
-                }
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Fermer") { showSavedSheet = false }
-                }
-            }
-        }
     }
 }
 
-// MARK: - Composant Toggle moderne
-private struct ControlToggleButton: View {
+// MARK: - Quick Toggle Component
+private struct QuickToggle: View {
     let icon: String
     let label: String
     @Binding var isOn: Bool
-    let tintColor: Color
+    let tint: Color
     
     var body: some View {
         Button(action: {
-            withAnimation(.spring(response: 0.3)) {
-                isOn.toggle()
-            }
+            withAnimation(.spring(response: 0.25)) { isOn.toggle() }
             UIImpactFeedbackGenerator(style: .light).impactOccurred()
         }) {
-            VStack(spacing: 4) {
+            VStack(spacing: 3) {
                 Image(systemName: icon)
-                    .font(.system(size: 18))
+                    .font(.system(size: 16))
                 Text(label)
-                    .font(Theme.roundedFont(size: 10, weight: .medium))
+                    .font(.system(size: 9, weight: .medium, design: .rounded))
             }
             .foregroundColor(isOn ? .white : .primary.opacity(0.7))
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 10)
+            .padding(.vertical, 8)
             .background(
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(isOn ? tintColor : Color(.systemBackground).opacity(0.8))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .stroke(isOn ? tintColor : Color.clear, lineWidth: 2)
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .fill(isOn ? tint : Color(.systemBackground).opacity(0.7))
             )
         }
         .buttonStyle(PlainButtonStyle())
-    }
-}
-
-// MARK: - Slider Vitesse vocale (tortue/lièvre)
-private struct VoiceSpeedSlider: View {
-    @Binding var speechRate: Double
-    let tintColor: Color
-    var onRateChange: (Double) -> Void
-    
-    var body: some View {
-        HStack(spacing: 12) {
-            // Tortue (lent)
-            Image(systemName: "tortoise.fill")
-                .font(.system(size: 18))
-                .foregroundColor(speechRate < 0.4 ? tintColor : .secondary)
-            
-            // Slider
-            Slider(value: $speechRate, in: 0.2...0.8, step: 0.05) { editing in
-                if !editing {
-                    onRateChange(speechRate)
-                }
-            }
-            .tint(tintColor)
-            .onChange(of: speechRate) { newValue in
-                onRateChange(newValue)
-            }
-            
-            // Lièvre (rapide)
-            Image(systemName: "hare.fill")
-                .font(.system(size: 18))
-                .foregroundColor(speechRate > 0.6 ? tintColor : .secondary)
-        }
-        .padding(.vertical, 8)
-        .padding(.horizontal, 12)
-        .background(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(.ultraThinMaterial)
-        )
     }
 }
 
@@ -1231,9 +1235,8 @@ private struct AICreationInlineView: View {
                     await MainActor.run {
                         generated = text
                         isLoading = false
-                        if SecureStore.load(key: apiKeyStorageKey) == nil {
-                            try? SecureStore.save(key: apiKeyStorageKey, data: Data(apiKey.utf8))
-                        }
+                        // Sauvegarder la clé API
+                        try? SecureStore.save(key: apiKeyStorageKey, data: Data(apiKey.utf8))
                     }
                 } catch {
                     await MainActor.run {
@@ -1511,125 +1514,29 @@ private extension ContentView {
     var backgroundBottomFade: Color { 
         currentTheme.isDark ? Color.black.opacity(0.4) : Color.black.opacity(0.25) 
     }
-    var controlBarPadding: CGFloat { kidMode ? 140 : 100 }
-
-    // Barre d'outils d'édition
-    var editorToolbar: some View {
-        HStack(spacing: 12) {
-            // Bouton Effacer
-            Button(action: {
-                showClearAlert = true
-                haptic(.light)
-            }) {
-                VStack(spacing: 4) {
-                    Image(systemName: "trash")
-                        .font(.system(size: 20))
-                    Text("Effacer")
-                        .font(Theme.roundedFont(size: 11, weight: .medium))
-                }
-                .foregroundColor(.red.opacity(0.8))
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 12)
-                .background(
-                    RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .fill(Color.white.opacity(0.95))
-                )
-            }
-            .disabled(inputText.isEmpty)
-            .opacity(inputText.isEmpty ? 0.5 : 1)
-            
-            // Bouton Sélectionner tout
-            Button(action: {
-                selectAllText()
-                haptic(.light)
-            }) {
-                VStack(spacing: 4) {
-                    Image(systemName: "selection.pin.in.out")
-                        .font(.system(size: 20))
-                    Text("Tout")
-                        .font(Theme.roundedFont(size: 11, weight: .medium))
-                }
-                .foregroundColor(currentTheme.primaryColor)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 12)
-                .background(
-                    RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .fill(Color.white.opacity(0.95))
-                )
-            }
-            .disabled(inputText.isEmpty)
-            .opacity(inputText.isEmpty ? 0.5 : 1)
-            
-            // Bouton Lire (à voix haute)
-            Button(action: {
-                speechSynthesizer.speak(inputText)
-                haptic(.light)
-            }) {
-                VStack(spacing: 4) {
-                    Image(systemName: speechSynthesizer.isSpeaking ? "stop.fill" : "speaker.wave.3.fill")
-                        .font(.system(size: 20))
-                    Text(speechSynthesizer.isSpeaking ? "Stop" : "Lire")
-                        .font(Theme.roundedFont(size: 11, weight: .medium))
-                }
-                .foregroundColor(speechSynthesizer.isSpeaking ? .orange : currentTheme.primaryColor)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 12)
-                .background(
-                    RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .fill(Color.white.opacity(0.95))
-                )
-            }
-            .disabled(inputText.isEmpty)
-            .opacity(inputText.isEmpty ? 0.5 : 1)
-            
-            // Bouton Traduire
-            Button(action: {
-                showTranslation = true
-                haptic(.light)
-            }) {
-                VStack(spacing: 4) {
-                    Image(systemName: "character.book.closed")
-                        .font(.system(size: 20))
-                    Text("Traduire")
-                        .font(Theme.roundedFont(size: 11, weight: .medium))
-                }
-                .foregroundColor(currentTheme.primaryColor)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 12)
-                .background(
-                    RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .fill(Color.white.opacity(0.95))
-                )
-            }
-            .disabled(inputText.isEmpty)
-            .opacity(inputText.isEmpty ? 0.5 : 1)
-        }
-        .padding(.horizontal)
-        .shadow(color: .black.opacity(0.06), radius: 8, y: 3)
-    }
-    
-    func selectAllText() {
-        // Copier le texte dans le presse-papiers et notifier l'utilisateur
-        UIPasteboard.general.string = inputText
-        // Focus sur le champ body pour permettre l'édition
-        focusedField = .body
-    }
 
     func haptic(_ style: UIImpactFeedbackGenerator.FeedbackStyle) {
         UIImpactFeedbackGenerator(style: style).impactOccurred()
     }
 
     func handlePlayPause() {
-        if isPlaying {
-            isPlaying = false
-            // Arrêter la lecture vocale si activée
-            if voiceEnabled {
-                speechSynthesizer.pause()
-            }
+        // If countdown is running, cancel it
+        if countdownTimer != nil {
+            cancelCountdown()
             return
         }
-        if countdownEnabled {
+        if isPlaying {
+            isPlaying = false
+            if voiceEnabled { speechSynthesizer.pause() }
+            return
+        }
+        // Stop frameSpeaker before starting playback (avoid audio conflict)
+        frameSpeaker.stop()
+        if countdownEnabled && !hasStartedOnce {
             startCountdown()
+        } else if hasStartedOnce {
+            // Resume from pause — don't reset voice tracking
+            resumePlayback()
         } else {
             startPlayback()
         }
@@ -1637,51 +1544,86 @@ private extension ContentView {
     
     func startPlayback() {
         isPlaying = true
-        // Démarrer la lecture vocale si activée
+        hasStartedOnce = true
+        showSpeedControl = false
         if voiceEnabled {
             speechSynthesizer.speechRate = Float(speechRate)
-            speechSynthesizer.speak(inputText)
+            speechSynthesizer.startPromptMode()
         }
+    }
+    
+    func resumePlayback() {
+        isPlaying = true
+        showSpeedControl = false
+        if voiceEnabled {
+            speechSynthesizer.speechRate = Float(speechRate)
+            speechSynthesizer.resumePromptMode()
+        }
+    }
+    
+    func speakFrameText(_ text: String) {
+        frameSpeaker.voiceIdentifier = speechSynthesizer.selectedVoiceIdentifier
+        frameSpeaker.rate = Float(speechRate)
+        frameSpeaker.speak(text)
+    }
+    
+    func requestSpeakVisibleText() {
+        // Don't allow if prompter is playing
+        guard !isPlaying else { return }
+        if frameSpeaker.isSpeaking {
+            frameSpeaker.stop()
+            return
+        }
+        // Stop speech synthesizer if it was still finishing
+        speechSynthesizer.stop()
+        // Request text extraction — the callback will call speakFrameText directly
+        requestVisibleText = true
     }
 
     func startCountdown() {
         guard countdownValue == nil else { return }
         countdownValue = 3
         isPlaying = false
-        Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [self] timer in
-            guard var value = countdownValue else { timer.invalidate(); return }
-            value -= 1
-            if value <= 0 {
-                countdownValue = nil
-                startPlayback()
+        var remaining = 3
+        let timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { timer in
+            remaining -= 1
+            if remaining <= 0 {
                 timer.invalidate()
+                DispatchQueue.main.async {
+                    self.countdownTimer = nil
+                    self.countdownValue = nil
+                    self.startPlayback()
+                }
             } else {
-                countdownValue = value
+                DispatchQueue.main.async { self.countdownValue = remaining }
             }
         }
+        countdownTimer = timer
+    }
+    
+    func cancelCountdown() {
+        countdownTimer?.invalidate()
+        countdownTimer = nil
+        countdownValue = nil
     }
 
     func saveCurrentText() {
-        let finalTitle = textTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "Texte du \(DateFormatter.shortDate.string(from: Date()))" : textTitle
+        let finalTitle = textTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty 
+            ? "Texte du \(DateFormatter.shortDate.string(from: Date()))" 
+            : textTitle
         let result = store.add(title: finalTitle, content: inputText)
         
         switch result {
-        case .success:
-            haptic(.rigid)
+        case .success: haptic(.rigid)
         case .limitReached:
             showLimitAlert = true
             haptic(.heavy)
         }
     }
     
-    // Fonction helper pour afficher le nom de la voix
     func voiceDisplayName(_ voice: AVSpeechSynthesisVoice) -> String {
         var name = voice.name
-        // Ajouter une indication pour les voix de haute qualité
-        if voice.quality == .enhanced {
-            name += " ✨"
-        }
-        // Ajouter le pays/région (compatible iOS 15+)
+        if voice.quality == .enhanced { name += " ✨" }
         let locale = Locale(identifier: voice.language)
         let regionCode: String?
         if #available(iOS 16, *) {
@@ -1700,85 +1642,89 @@ private extension ContentView {
     func countdownOverlay(_ value: Int) -> some View {
         ZStack {
             Color.black.opacity(0.35).ignoresSafeArea()
-            Text("\(value)").font(Theme.roundedFont(size: 80, weight: .bold)).foregroundColor(.white)
+            Text("\(value)")
+                .font(Theme.roundedFont(size: 80, weight: .bold))
+                .foregroundColor(.white)
                 .transition(.scale)
         }
         .animation(.easeOut(duration: 0.2), value: value)
     }
-    // Options sheet: sliders, countdown, colors and save
+    
+    // MARK: - Options Sheet (simplified - no duplicates)
     @ViewBuilder
     var optionsSheet: some View {
         NavigationView {
             Form {
-                Section(header: Text("Défilement")) {
-                    HStack { Text("Vitesse"); Slider(value: $speed, in: 20...200); Text("\(Int(speed)) pt/s").monospacedDigit() }
-                    HStack { Text("Taille du texte"); Slider(value: $fontSize, in: 24...56); Text("\(Int(fontSize)) pt").monospacedDigit() }
-                    Toggle("Compte à rebours (3…1)", isOn: $countdownEnabled)
-                }
                 Section(header: Text("Lecture vocale")) {
-                    Toggle(isOn: $voiceEnabled) {
-                        Label("Activer le lecteur virtuel", systemImage: "speaker.wave.2.fill")
-                    }
-                    
                     if voiceEnabled {
-                        // Sélection de la voix
                         Picker("Voix", selection: $speechSynthesizer.selectedVoiceIdentifier) {
                             ForEach(speechSynthesizer.availableVoices, id: \.identifier) { voice in
-                                Text(voiceDisplayName(voice))
-                                    .tag(voice.identifier)
+                                Text(voiceDisplayName(voice)).tag(voice.identifier)
                             }
                         }
                         
-                        // Vitesse de lecture vocale
-                        HStack {
-                            Image(systemName: "tortoise.fill")
-                                .foregroundColor(.secondary)
-                            Slider(value: $speechRate, in: 0.1...0.7)
-                            Image(systemName: "hare.fill")
-                                .foregroundColor(.secondary)
-                        }
-                        
-                        // Bouton de test de la voix
                         Button(action: {
                             if speechSynthesizer.isSpeaking {
                                 speechSynthesizer.stop()
                             } else {
                                 speechSynthesizer.speechRate = Float(speechRate)
-                                speechSynthesizer.speak("Bonjour, je suis votre lecteur virtuel.")
+                                speechSynthesizer.speak("Bonjour, je suis votre lecteur.")
+                                // speechRate is derived from scroll speed automatically
                             }
                         }) {
                             Label(
-                                speechSynthesizer.isSpeaking ? "Arrêter le test" : "Tester la voix",
+                                speechSynthesizer.isSpeaking ? "Arrêter" : "Tester la voix",
                                 systemImage: speechSynthesizer.isSpeaking ? "stop.fill" : "play.fill"
                             )
                         }
+                    } else {
+                        Text("Activez la voix avec le bouton dans les contrôles")
+                            .foregroundColor(.secondary)
+                            .font(.footnote)
                     }
                 }
                 
                 Section(header: Text("Affichage")) {
-                    Toggle("Colorer les syllabes", isOn: $colorSyllables)
-                    ColorPicker("Couleur 1", selection: $color1)
-                    ColorPicker("Couleur 2", selection: $color2)
-                    Toggle("Mode miroir", isOn: $mirror)
-                    Toggle("Centrer le texte", isOn: $centerAlign)
+                    ColorPicker("Couleur syllabe 1", selection: $color1)
+                    ColorPicker("Couleur syllabe 2", selection: $color2)
+                    
                     HStack {
-                        Text("Marges latérales")
-                        Slider(value: $sidePadding, in: 10...60)
-                        Text("\(Int(sidePadding)) pt").monospacedDigit()
+                        Text("Marges")
+                        Slider(value: $sidePadding, in: 10...50)
+                        Text("\(Int(sidePadding))")
+                            .monospacedDigit()
+                            .frame(width: 30)
                     }
+                    
                     HStack {
                         Text("Taille du cadre")
-                        Slider(value: $readCardFraction, in: 0.20...0.80)
-                        Text("\(Int(readCardFraction * 100)) %").monospacedDigit()
+                        Slider(value: $readCardFraction, in: 0.25...0.80)
+                        Text("\(Int(readCardFraction * 100))%")
+                            .monospacedDigit()
+                            .frame(width: 40)
                     }
+                    
+                    Toggle("Compte à rebours", isOn: $countdownEnabled)
                 }
-                Section(header: Text("Mes textes")) {
-                    Button { saveCurrentText() } label: { Label("Enregistrer le texte actuel", systemImage: "square.and.arrow.down") }
-                    Button { showSavedSheet = true } label: { Label("Ouvrir la bibliothèque", systemImage: "books.vertical") }
+                
+                Section(header: Text("Bibliothèque")) {
+                    Button { 
+                        showOptions = false
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                            showLibrary = true
+                        }
+                    } label: { 
+                        Label("Ouvrir la bibliothèque", systemImage: "books.vertical") 
+                    }
                 }
             }
             .navigationTitle("Options")
-            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Fermer") { showOptions = false } } }
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("OK") { showOptions = false }
+                }
+            }
         }
     }
 }
@@ -1807,6 +1753,16 @@ extension View {
     func scrollDismissesKeyboardCompatInteractively() -> some View {
         if #available(iOS 16.0, *) {
             self.scrollDismissesKeyboard(.interactively)
+        } else {
+            self
+        }
+    }
+    
+    // Compatibility wrapper: safely applies iOS 16's scrollContentBackground when available
+    @ViewBuilder
+    func scrollContentBackgroundHiddenCompat() -> some View {
+        if #available(iOS 16.0, *) {
+            self.scrollContentBackground(.hidden)
         } else {
             self
         }
@@ -1872,12 +1828,10 @@ private struct PresentationDetentsModifier: ViewModifier {
 }
 
 #if DEBUG
-// SwiftUI Previews: Éditer, Lire, et Mode enfant
 extension ContentView {
-    init(previewMode: Mode? = nil, kidMode: Bool? = nil) {
+    init(previewMode: Mode? = nil) {
         self.init()
         if let m = previewMode { _mode = State(initialValue: m) }
-        if let k = kidMode { _kidMode = State(initialValue: k) }
         _inputText = State(initialValue: SampleText.fr)
     }
 }
@@ -1885,14 +1839,14 @@ extension ContentView {
 struct ContentView_Previews: PreviewProvider {
     static var previews: some View {
         Group {
-            ContentView(previewMode: .edit, kidMode: false)
+            ContentView(previewMode: .edit)
                 .previewDisplayName("Éditer")
                 .previewDevice("iPhone 15 Pro")
-            ContentView(previewMode: .read, kidMode: true)
-                .previewDisplayName("Lire – Mode enfant")
+            ContentView(previewMode: .read)
+                .previewDisplayName("Lire")
                 .previewDevice("iPhone 15 Pro")
-            ContentView(previewMode: .read, kidMode: false)
-                .previewDisplayName("iPad – Lecture")
+            ContentView(previewMode: .read)
+                .previewDisplayName("iPad")
                 .previewDevice("iPad Pro (12.9-inch) (6th generation)")
         }
     }

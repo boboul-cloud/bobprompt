@@ -89,7 +89,9 @@ Astuce design:
 - Réglage de la vitesse (pt/s) et de la taille du texte.
  - Mode miroir (pour utilisation avec réflecteur).
  - Compte à rebours (3…2…1) avant démarrage, optionnel.
- - Sauvegarde et chargement de textes (UserDefaults).
+ - Sauvegarde de textes via Keychain (persistante après réinstallation).
+   - Mode gratuit : jusqu'à 2 textes
+   - Mode Premium : jusqu'à 50 textes
 
 ## Notes techniques
 - SwiftUI + `UITextView` intégré via `UIViewRepresentable` pour un défilement fluide.
