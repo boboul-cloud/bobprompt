@@ -6,8 +6,10 @@ struct ReaderView: View {
     @Environment(ScriptStore.self) private var store
     @Environment(SettingsStore.self) private var settingsStore
     @Environment(AppRouter.self) private var router
+    @Environment(RewardStore.self) private var rewards
     @Environment(\.dismiss) private var dismiss
 
+    let profile: ReaderProfile
     @State private var script: Script
     @State private var document: PrompterDocument
     @State private var engine: PrompterEngine
@@ -20,20 +22,35 @@ struct ReaderView: View {
     @State private var readingTime: TimeInterval = 0
     @State private var playStartedAt: Date?
     @State private var safeArea = EdgeInsets()
+    // Récompenses (coin des enfants)
+    @State private var track = SentenceTrack()
+    @State private var gain: RewardStore.Gain?
+    @State private var sessionStars = 0
+    @State private var sessionBadges: [RewardStore.Badge] = []
+
+    /// Phrase en cours et moment où l'enfant y est entré : une phrase ne
+    /// rapporte une étoile que si on a pris le temps de la lire.
+    struct SentenceTrack {
+        var sentence = 0
+        var enteredAt = Date()
+        var rewardedUpTo = -1
+    }
 
     enum ReaderSheet: String, Identifiable {
         case settings, styles, edit
         var id: String { rawValue }
     }
 
-    init(script: Script) {
+    init(script: Script, profile: ReaderProfile = .studio) {
+        self.profile = profile
         _script = State(initialValue: script)
         let doc = PrompterDocument(text: script.content)
         _document = State(initialValue: doc)
         _engine = State(initialValue: PrompterEngine(document: doc))
     }
 
-    private var settings: ReaderSettings { settingsStore.reader }
+    private var settings: ReaderSettings { settingsStore[profile] }
+    private var isKids: Bool { profile == .kids }
     private var accent: Color { Palette.cardColor(script.colorIndex) }
     /// Les scènes 3D suivent l'inclinaison de l'appareil (si le réglage le permet).
     private var wantsTilt: Bool { settings.style.family == .threeD && settings.motionParallax }
@@ -65,11 +82,25 @@ struct ReaderView: View {
                     .allowsHitTesting(false)
             }
 
+            if let gain, isKids, !finished {
+                RewardBanner(gain: gain)
+                    .padding(.top, safeArea.top + 56)
+                    .frame(maxHeight: .infinity, alignment: .top)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+                    .allowsHitTesting(false)
+            }
+
             if finished {
-                FinishView(words: document.wordCount, seconds: readingTime, accent: accent,
-                           onReplay: { finished = false; engine.restart(); engine.toggle(countdown: settings.countdown) },
-                           onClose: close)
-                    .transition(.opacity.combined(with: .scale(scale: 1.05)))
+                Group {
+                    if isKids {
+                        KidsFinishView(stars: sessionStars, badges: sessionBadges, total: rewards.stars,
+                                       onReplay: replay, onClose: close)
+                    } else {
+                        FinishView(words: document.wordCount, seconds: readingTime, accent: accent,
+                                   onReplay: replay, onClose: close)
+                    }
+                }
+                .transition(.opacity.combined(with: .scale(scale: 1.05)))
             }
 
             keyboardShortcuts
@@ -88,6 +119,7 @@ struct ReaderView: View {
         .onChange(of: settings.voiceID) { _, v in engine.voiceID = v }
         .onChange(of: wantsTilt, initial: true) { _, on in on ? tilt.start() : tilt.stop() }
         .onChange(of: engine.phase) { old, new in phaseChanged(from: old, to: new) }
+        .onChange(of: engine.coarseWord) { _, w in if isKids { sentenceProgress(word: w) } }
         .sheet(item: $sheet, onDismiss: reloadIfEdited) { s in
             switch s {
             case .settings: ReaderSettingsView()
@@ -96,6 +128,8 @@ struct ReaderView: View {
                 NavigationStack { EditorView(scriptID: script.id, presentedFromReader: true) }
             }
         }
+        // En dernier : le profil doit aussi atteindre les feuilles (réglages, styles).
+        .environment(\.readerProfile, profile)
     }
 
     // MARK: - Scène
@@ -105,6 +139,7 @@ struct ReaderView: View {
         let ctx = StageContext(engine: engine, document: document, settings: settings, tilt: tilt,
                                accent: accent, safeArea: safeArea)
         switch settings.style {
+        case .sky: SkyStage(ctx: ctx)
         case .classic: ClassicStage(ctx: ctx)
         case .crtGreen: CRTStage(ctx: ctx, amber: false, title: script.displayTitle)
         case .crtAmber: CRTStage(ctx: ctx, amber: true, title: script.displayTitle)
@@ -135,17 +170,24 @@ struct ReaderView: View {
             topBar
             if let w = resumeWord { resumeBanner(word: w) }
             Spacer()
-            if !engine.isPlaying, !document.isEmpty, engine.phase != .finished {
-                Button { engine.readSentenceAloud(); poke() } label: {
-                    Label("Écouter la phrase", systemImage: "waveform")
+            if isKids {
+                KidsControlBar(engine: engine,
+                               onSettings: { sheet = .settings },
+                               onStyles: { sheet = .styles },
+                               onInteract: poke)
+            } else {
+                if !engine.isPlaying, !document.isEmpty, engine.phase != .finished {
+                    Button { engine.readSentenceAloud(); poke() } label: {
+                        Label("Écouter la phrase", systemImage: "waveform")
+                    }
+                    .buttonStyle(PrimaryButtonStyle(color: .white.opacity(0.18), compact: true))
+                    .transition(.opacity)
                 }
-                .buttonStyle(PrimaryButtonStyle(color: .white.opacity(0.18), compact: true))
-                .transition(.opacity)
+                ReaderControlBar(engine: engine, accent: accent,
+                                 onSettings: { sheet = .settings },
+                                 onStyles: { sheet = .styles },
+                                 onInteract: poke)
             }
-            ReaderControlBar(engine: engine, accent: accent,
-                             onSettings: { sheet = .settings },
-                             onStyles: { sheet = .styles },
-                             onInteract: poke)
         }
         .padding(.horizontal, 14)
         .padding(.bottom, 8)
@@ -171,13 +213,17 @@ struct ReaderView: View {
 
             Spacer(minLength: 0)
 
-            Button {
-                if script.isSample { copySample() } else { engine.pause(); sheet = .edit }
-            } label: {
-                Image(systemName: script.isSample ? "doc.on.doc" : "pencil")
+            if isKids {
+                StarCounter(stars: rewards.stars, compact: true)
+            } else {
+                Button {
+                    if script.isSample { copySample() } else { engine.pause(); sheet = .edit }
+                } label: {
+                    Image(systemName: script.isSample ? "doc.on.doc" : "pencil")
+                }
+                .buttonStyle(GlassCircleButtonStyle(size: 44))
+                .accessibilityLabel(script.isSample ? "Copier cet exemple pour le modifier" : "Modifier le texte")
             }
-            .buttonStyle(GlassCircleButtonStyle(size: 44))
-            .accessibilityLabel(script.isSample ? "Copier cet exemple pour le modifier" : "Modifier le texte")
         }
     }
 
@@ -223,8 +269,9 @@ struct ReaderView: View {
             Button("Phrase suivante") { engine.jumpSentence(1) }.keyboardShortcut(.downArrow, modifiers: [])
             Button("Page précédente") { engine.jumpSentence(-1) }.keyboardShortcut(.pageUp, modifiers: [])
             Button("Page suivante") { engine.jumpSentence(1) }.keyboardShortcut(.pageDown, modifiers: [])
-            Button("Plus lent") { changeSpeed(-10) }.keyboardShortcut(.leftArrow, modifiers: [])
-            Button("Plus rapide") { changeSpeed(10) }.keyboardShortcut(.rightArrow, modifiers: [])
+            Button("Plus lent") { changeSpeed(up: false) }.keyboardShortcut(.leftArrow, modifiers: [])
+            Button("Plus rapide") { changeSpeed(up: true) }.keyboardShortcut(.rightArrow, modifiers: [])
+            Button("Mot suivant") { engine.jumpWord(1) }.keyboardShortcut(.return, modifiers: [])
             Button("Fermer") { close() }.keyboardShortcut(.escape, modifiers: [])
         }
         .frame(width: 0, height: 0)
@@ -239,11 +286,13 @@ struct ReaderView: View {
         engine.wordsPerMinute = settings.wordsPerMinute
         engine.voiceEnabled = settings.voiceOn
         engine.voiceID = settings.voiceID
-        engine.onFinish = { withAnimation(.spring(response: 0.5)) { finished = true }; Haptics.success() }
+        engine.onFinish = { finishedReading() }
+        track = SentenceTrack(sentence: document.isEmpty ? 0 : document.sentenceIndex(ofWord: engine.currentWord))
         #if DEBUG
         let demo = DemoConfig.current
         if demo.screen != nil {
             if let w = demo.word { engine.seek(toWord: w); engine.pause() }
+            track = SentenceTrack(sentence: document.isEmpty ? 0 : document.sentenceIndex(ofWord: engine.currentWord))
             if demo.screen == "styles" { sheet = .styles }
             if demo.screen == "settings" { sheet = .settings }
             if demo.play { engine.play() }
@@ -273,8 +322,58 @@ struct ReaderView: View {
 
     private func close() {
         savePosition()
+        if isKids, !finished, engine.progress > 0 { rewards.textProgress(script.id, fraction: engine.progress) }
         engine.shutdown()
         dismiss()
+    }
+
+    private func replay() {
+        finished = false
+        sessionStars = 0
+        sessionBadges = []
+        engine.restart()
+        track = SentenceTrack()
+        engine.toggle(countdown: settings.countdown)
+    }
+
+    private func finishedReading() {
+        if isKids {
+            // La dernière phrase compte aussi.
+            sentenceProgress(word: document.wordCount, force: true)
+            collect(rewards.textFinished(script.id, wordsPerMinute: settings.wordsPerMinute))
+        }
+        withAnimation(.spring(response: 0.5)) { finished = true }
+        Haptics.success()
+    }
+
+    /// Une étoile par phrase lue en avançant, si l'enfant a eu le temps de la lire
+    /// (pas en faisant défiler du doigt).
+    private func sentenceProgress(word: Int, force: Bool = false) {
+        guard !document.isEmpty else { return }
+        let new = word >= document.wordCount ? document.sentences.count : document.sentenceIndex(ofWord: word)
+        guard new != track.sentence else { return }
+        let old = track.sentence
+        let words = document.sentences.indices.contains(old) ? document.sentences[old].words.count : 1
+        let enough = Date().timeIntervalSince(track.enteredAt) >= Double(words) * 0.35
+        if new == old + 1, old > track.rewardedUpTo, enough, engine.isPlaying || force || engine.phase == .paused {
+            track.rewardedUpTo = old
+            collect(rewards.sentenceRead())
+        }
+        track.sentence = new
+        track.enteredAt = Date()
+    }
+
+    private func collect(_ g: RewardStore.Gain) {
+        guard g.stars > 0 || !g.badges.isEmpty || g.newLevel != nil else { return }
+        sessionStars += g.stars
+        sessionBadges += g.badges
+        if !g.badges.isEmpty || g.newLevel != nil { Haptics.success() }
+        withAnimation(.spring(response: 0.45, dampingFraction: 0.7)) { gain = g }
+        let shown = g
+        Task {
+            try? await Task.sleep(for: .seconds(g.badges.isEmpty && g.newLevel == nil ? 1.3 : 2.8))
+            if gain == shown { withAnimation(.easeOut(duration: 0.3)) { gain = nil } }
+        }
     }
 
     private func savePosition() {
@@ -320,9 +419,8 @@ struct ReaderView: View {
         }
     }
 
-    private func changeSpeed(_ delta: Double) {
-        let r = ReaderSettings.speedRange
-        settingsStore.reader.wordsPerMinute = min(r.upperBound, max(r.lowerBound, settings.wordsPerMinute + delta))
+    private func changeSpeed(up: Bool) {
+        settingsStore[profile].wordsPerMinute = ReaderSettings.stepped(settings.wordsPerMinute, up: up)
         poke()
     }
 
@@ -352,7 +450,7 @@ struct ReaderView: View {
         Task { @MainActor in
             try? await Task.sleep(for: .milliseconds(450))
             if canCreate {
-                _ = router.newScript(in: store, title: script.displayTitle, content: script.content)
+                _ = router.newScript(in: store, title: script.displayTitle, content: script.content, profile: profile)
                 router.show("Copie créée : tu peux la modifier")
             } else {
                 router.sheet = .premium
@@ -365,6 +463,7 @@ struct ReaderView: View {
 
 struct ReaderControlBar: View {
     @Environment(SettingsStore.self) private var settingsStore
+    @Environment(\.readerProfile) private var profile
     let engine: PrompterEngine
     let accent: Color
     let onSettings: () -> Void
@@ -372,7 +471,7 @@ struct ReaderControlBar: View {
     let onInteract: () -> Void
 
     var body: some View {
-        let s = settingsStore.reader
+        let s = settingsStore[profile]
         VStack(spacing: 14) {
             ProgressScrubber(engine: engine, accent: accent, onInteract: onInteract)
 
@@ -382,14 +481,14 @@ struct ReaderControlBar: View {
                     .accessibilityLabel("Réglages de lecture")
 
                 HStack(spacing: 0) {
-                    speedButton("minus", delta: -10)
+                    speedButton("minus", up: false)
                     VStack(spacing: 0) {
                         Text("\(Int(s.wordsPerMinute))").font(Typo.headline(17)).monospacedDigit()
                         Text("mots/min").font(Typo.caption(10)).opacity(0.7)
                     }
                     .frame(minWidth: 64)
                     .contentTransition(.numericText())
-                    speedButton("plus", delta: 10)
+                    speedButton("plus", up: true)
                 }
                 .foregroundStyle(.white)
                 .frame(height: 42)
@@ -397,7 +496,7 @@ struct ReaderControlBar: View {
                 .accessibilityElement(children: .combine)
                 .accessibilityLabel("Vitesse \(Int(s.wordsPerMinute)) mots par minute")
                 .accessibilityAdjustableAction { dir in
-                    change(dir == .increment ? 10 : -10)
+                    change(up: dir == .increment)
                 }
 
                 Button(action: onStyles) {
@@ -423,7 +522,7 @@ struct ReaderControlBar: View {
                     .accessibilityLabel("Phrase précédente")
 
                 PlayButton(engine: engine, accent: accent) {
-                    engine.toggle(countdown: settingsStore.reader.countdown)
+                    engine.toggle(countdown: settingsStore[profile].countdown)
                     Haptics.thump()
                     onInteract()
                 }
@@ -432,7 +531,7 @@ struct ReaderControlBar: View {
                     .buttonStyle(GlassCircleButtonStyle(size: 46))
                     .accessibilityLabel("Phrase suivante")
                 Button {
-                    settingsStore.reader.voiceOn.toggle()
+                    settingsStore[profile].voiceOn.toggle()
                     Haptics.tap()
                     onInteract()
                 } label: {
@@ -452,18 +551,17 @@ struct ReaderControlBar: View {
         .frame(maxWidth: 560)
     }
 
-    private func speedButton(_ symbol: String, delta: Double) -> some View {
-        Button { change(delta) } label: {
+    private func speedButton(_ symbol: String, up: Bool) -> some View {
+        Button { change(up: up) } label: {
             Image(systemName: symbol).font(.system(size: 14, weight: .heavy)).frame(width: 40, height: 42)
         }
         .buttonRepeatBehavior(.enabled)
         .accessibilityHidden(true)
     }
 
-    private func change(_ delta: Double) {
-        let r = ReaderSettings.speedRange
+    private func change(up: Bool) {
         withAnimation(.snappy) {
-            settingsStore.reader.wordsPerMinute = min(r.upperBound, max(r.lowerBound, settingsStore.reader.wordsPerMinute + delta))
+            settingsStore[profile].wordsPerMinute = ReaderSettings.stepped(settingsStore[profile].wordsPerMinute, up: up)
         }
         Haptics.tick()
         onInteract()

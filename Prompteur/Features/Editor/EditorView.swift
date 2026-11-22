@@ -7,6 +7,7 @@ struct EditorView: View {
     @Environment(SettingsStore.self) private var settings
     @Environment(AppRouter.self) private var router
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.readerProfile) private var profile
 
     let scriptID: UUID
     var presentedFromReader = false
@@ -38,7 +39,7 @@ struct EditorView: View {
             ZStack(alignment: .topLeading) {
                 if preview {
                     ScrollView {
-                        SyllableDocumentView(text: content, settings: settings.reader)
+                        SyllableDocumentView(text: content, settings: settings[profile])
                             .padding(18)
                     }
                 } else {
@@ -129,7 +130,7 @@ struct EditorView: View {
                 Button {
                     save()
                     focus = nil
-                    if let s = store.script(scriptID) { router.read(s) }
+                    if let s = store.script(scriptID) { router.read(s, profile: profile) }
                 } label: {
                     Label("Lire", systemImage: "play.fill")
                         .labelStyle(.titleAndIcon)
@@ -150,7 +151,7 @@ struct EditorView: View {
     private func statsBar(accent: Color) -> some View {
         let doc = Script(title: title, content: content)
         let words = doc.wordCount
-        let wpm = settings.reader.wordsPerMinute
+        let wpm = settings[profile].wordsPerMinute
         return HStack(spacing: 8) {
             Tag(text: Format.words(words), tint: accent)
             Tag(text: "≈ " + Format.duration(Double(words) / max(1, wpm) * 60) + " à \(Int(wpm)) mots/min",

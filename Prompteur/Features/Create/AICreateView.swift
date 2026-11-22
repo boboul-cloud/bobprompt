@@ -5,6 +5,7 @@ struct AICreateView: View {
     @Environment(ScriptStore.self) private var store
     @Environment(AppRouter.self) private var router
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.readerProfile) private var profile
 
     @State private var request = AIRequest()
     @State private var engine: AIEngine = AIService.appleStatus.available ? .apple : .openAI
@@ -50,13 +51,19 @@ struct AICreateView: View {
             .scrollDismissesKeyboard(.interactively)
             .background(Palette.background.ignoresSafeArea())
             .safeAreaInset(edge: .bottom) { bottomBar }
-            .navigationTitle("Créer avec l'IA")
+            .navigationTitle(profile == .kids ? "Inventer une histoire" : "Créer avec l'IA")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Fermer") { dismiss() } }
             }
         }
         .tint(Palette.indigo)
+        .onAppear {
+            if profile == .kids, request.subject.isEmpty {
+                request.audience = .petits
+                request.kind = .histoire
+            }
+        }
     }
 
     // MARK: Éléments
@@ -241,7 +248,7 @@ struct AICreateView: View {
             dismiss()
             Task { @MainActor in
                 try? await Task.sleep(for: .milliseconds(350))
-                router.edit(s.id)
+                router.edit(s.id, profile: profile)
                 router.show("Texte ajouté à ta bibliothèque")
             }
         } else {

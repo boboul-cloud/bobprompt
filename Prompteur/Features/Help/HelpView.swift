@@ -16,6 +16,13 @@ struct HelpView: View {
                     }
                     .padding(.bottom, 6)
 
+                    card("★", "Le coin lecture (enfants)", KidsPalette.orange) {
+                        bullet("cloud.sun.fill", "Pluie de mots : chaque mot tombe du ciel au moment de le lire et se pose sur un nuage. Touche un mot pour l'entendre.")
+                        bullet("tortoise.fill", "Choisis l'allure : 🐌 Escargot, 🐢 Tortue, 🐇 Lapin ou 🚀 Fusée. La flèche verte avance d'un mot, à ton rythme.")
+                        bullet("star.fill", "Chaque phrase lue rapporte une étoile, une histoire finie en rapporte cinq. Les étoiles font monter de niveau et débloquent des badges.")
+                        bullet("flame.fill", "Lis un peu chaque jour : la série de jours grandit, et la première lecture du jour donne un bonus.")
+                    }
+
                     card("1", "Écrire ou choisir un texte", Palette.onAir) {
                         bullet("square.and.pencil", "« Nouveau texte » : écris ou colle ton texte. Tout s'enregistre tout seul.")
                         bullet("sparkles", "« Avec l'IA » : donne un sujet, choisis pour qui, et l'IA l'écrit pour toi.")
@@ -31,6 +38,7 @@ struct HelpView: View {
                     }
 
                     card("3", "Choisir un style", Palette.teal) {
+                        bullet("cloud.sun.fill", "Dessin animé : la pluie de mots, idéale pour apprendre à lire.")
                         bullet("text.alignleft", "Classique : fond Nuit, Papier (avec règle de lecture) ou Contraste.")
                         bullet("tv", "Vieille école : écran cathodique vert ou ambre, ou machine à écrire qui tape le texte, ding !")
                         bullet("cylinder.split.1x2", "3D Tambour : fais tourner le texte du doigt, glisse sur le côté pour tourner autour, pince pour zoomer, penche l'appareil.")

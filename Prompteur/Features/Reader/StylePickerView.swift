@@ -4,12 +4,19 @@ import SwiftUI
 struct StylePickerView: View {
     @Environment(SettingsStore.self) private var store
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.readerProfile) private var profile
+
+    /// Les enfants voient d'abord le dessin animé ; le studio, le classique.
+    private var families: [StageFamily] {
+        profile == .kids ? [.cartoon, .classic, .threeD, .retro] : [.classic, .retro, .threeD, .cartoon]
+    }
 
     var body: some View {
+        let s = store.binding(profile)
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 22) {
-                    ForEach(StageFamily.allCases) { family in
+                    ForEach(families) { family in
                         VStack(alignment: .leading, spacing: 10) {
                             Text(family.title.uppercased())
                                 .font(Typo.caption(12))
@@ -18,8 +25,8 @@ struct StylePickerView: View {
                             ScrollView(.horizontal, showsIndicators: false) {
                                 HStack(spacing: 12) {
                                     ForEach(StageStyle.allCases.filter { $0.family == family }) { style in
-                                        StyleTile(style: style, selected: store.reader.style == style) {
-                                            withAnimation(.snappy) { store.reader.style = style }
+                                        StyleTile(style: style, selected: s.wrappedValue.style == style) {
+                                            withAnimation(.snappy) { s.wrappedValue.style = style }
                                             Haptics.tick()
                                         }
                                     }
@@ -27,7 +34,7 @@ struct StylePickerView: View {
                                 .padding(.horizontal, 2)
                                 .padding(.vertical, 4)
                             }
-                            if family == .classic, store.reader.style == .classic { themeChips }
+                            if family == .classic, s.wrappedValue.style == .classic { themeChips }
                         }
                     }
                 }
@@ -45,12 +52,12 @@ struct StylePickerView: View {
     }
 
     private var themeChips: some View {
-        @Bindable var store = store
+        let s = store.binding(profile)
         return HStack(spacing: 8) {
             ForEach(ClassicTheme.allCases) { t in
-                let selected = store.reader.classicTheme == t
+                let selected = s.wrappedValue.classicTheme == t
                 Button {
-                    withAnimation(.snappy) { store.reader.classicTheme = t }
+                    withAnimation(.snappy) { s.wrappedValue.classicTheme = t }
                     Haptics.tick()
                 } label: {
                     HStack(spacing: 6) {
@@ -113,6 +120,29 @@ struct StyleThumbnail: View {
 
     var body: some View {
         switch style {
+        case .sky:
+            ZStack {
+                LinearGradient(colors: [Color(hex: "#5BBEFF"), Color(hex: "#D7F0FF")], startPoint: .top, endPoint: .bottom)
+                FluffyCloud(seed: 2).frame(width: 120, height: 52).offset(y: 24)
+                HStack(spacing: 4) {
+                    Text("Il").foregroundStyle(Color(hex: "#1D5BD6"))
+                    HStack(spacing: 0) {
+                        Text("é").foregroundStyle(Color(hex: "#1D5BD6"))
+                        Text("tait").foregroundStyle(Color(hex: "#D7263D"))
+                    }
+                }
+                .font(.system(size: 15, weight: .heavy, design: .rounded))
+                .offset(y: 30)
+                Text("une")
+                    .font(.system(size: 15, weight: .heavy, design: .rounded))
+                    .foregroundStyle(Color(hex: "#24304D"))
+                    .padding(.horizontal, 5)
+                    .background(Capsule().fill(.white))
+                    .rotationEffect(.degrees(-14))
+                    .offset(x: 34, y: -18)
+                Image(systemName: "sun.max.fill").font(.system(size: 22)).foregroundStyle(KidsPalette.sun)
+                    .offset(x: -60, y: -32)
+            }
         case .classic:
             ZStack {
                 LinearGradient(colors: [Color(hex: "#0A0D1A"), Color(hex: "#151C38")], startPoint: .top, endPoint: .bottom)

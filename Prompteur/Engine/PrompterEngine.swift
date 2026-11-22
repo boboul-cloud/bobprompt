@@ -237,6 +237,32 @@ final class PrompterEngine {
         target = min(max(0, target), document.sentences.count - 1)
         seek(toWord: document.sentences[target].words.lowerBound)
         if wasPlaying, voiceEnabled { startVoice(from: currentWord) }
+        if !wasPlaying { glideIntoCurrentWord() }
+    }
+
+    /// Mot précédent (-1) ou suivant (+1) : lecture « à mon rythme ».
+    func jumpWord(_ delta: Int) {
+        guard !document.isEmpty else { return }
+        if oneSentenceEnd != nil { pause() }
+        let wasPlaying = phase == .playing
+        if wasPlaying { stopVoice() }
+        let target = min(max(0, currentWord + delta), document.words.count - 1)
+        seek(toWord: target)
+        if wasPlaying {
+            if voiceEnabled { startVoice(from: currentWord) }
+        } else {
+            glideIntoCurrentWord()
+        }
+    }
+
+    /// En pause, avance en douceur jusqu'au milieu du mot : le mot « arrive »
+    /// (chute dans le mode dessin animé) au lieu d'apparaître d'un coup.
+    private func glideIntoCurrentWord() {
+        let w = currentWord
+        let len = timeline.start(ofWord: w + 1) - timeline.start(ofWord: w)
+        coast = 0
+        inertia = len * 0.5 * 3.2
+        driver.start()
     }
 
     // Glisser du doigt

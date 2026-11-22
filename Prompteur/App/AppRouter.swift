@@ -1,38 +1,63 @@
 import SwiftUI
 import Observation
 
-/// Navigation de l'app : bibliothèque → éditeur, lecteur plein écran, feuilles.
+/// Navigation : accueil → coin des enfants ou studio → éditeur ;
+/// lecteur plein écran ; feuilles.
 @MainActor
 @Observable
 final class AppRouter {
-    enum Sheet: String, Identifiable {
-        case premium, help, create
-        var id: String { rawValue }
+    enum Route: Hashable {
+        case kids, studio, rewards
+        case editor(UUID, ReaderProfile)
     }
 
-    var path: [UUID] = []
-    var reading: Script?
+    enum Sheet: Identifiable, Equatable {
+        case premium, help
+        case create(ReaderProfile)
+        var id: String {
+            switch self {
+            case .premium: return "premium"
+            case .help: return "help"
+            case .create(let p): return "create-\(p.rawValue)"
+            }
+        }
+    }
+
+    struct Reading: Identifiable {
+        let script: Script
+        let profile: ReaderProfile
+        var id: UUID { script.id }
+    }
+
+    var path: [Route] = []
+    var reading: Reading?
     var sheet: Sheet?
-    /// Message bref affiché en bas de la bibliothèque.
+    /// Message bref affiché en bas de l'écran.
     var toast: String?
 
-    func read(_ script: Script) {
+    func open(_ route: Route) {
         Haptics.tap()
-        reading = script
+        path.append(route)
     }
 
-    func edit(_ id: UUID) {
-        if path.last != id { path.append(id) }
+    func read(_ script: Script, profile: ReaderProfile = .studio) {
+        Haptics.tap()
+        reading = Reading(script: script, profile: profile)
+    }
+
+    func edit(_ id: UUID, profile: ReaderProfile = .studio) {
+        if path.last != .editor(id, profile) { path.append(.editor(id, profile)) }
     }
 
     /// Crée un nouveau texte et ouvre l'éditeur, ou propose Premium si la limite est atteinte.
-    func newScript(in store: ScriptStore, title: String = "", content: String = "") -> Bool {
+    func newScript(in store: ScriptStore, title: String = "", content: String = "",
+                   profile: ReaderProfile = .studio) -> Bool {
         guard let s = store.create(title: title, content: content) else {
             Haptics.warning()
             sheet = .premium
             return false
         }
-        edit(s.id)
+        edit(s.id, profile: profile)
         return true
     }
 

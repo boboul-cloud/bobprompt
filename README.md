@@ -5,10 +5,20 @@ s'amusant. iPhone et iPad, iOS 17 minimum.
 
 ## Ce que fait l'app
 
-- **Bibliothèque** : mes textes (cartes colorées, durée estimée, reprise de
+- **Accueil** : Bob, le petit nuage mascotte, salue selon l'heure ; deux
+  portes : le *Coin lecture* (enfants) et le *Studio* (ados, adultes).
+  Chaque monde garde ses propres réglages.
+- **Coin lecture** : histoires en tuiles, style *Pluie de mots* (les mots
+  tombent du ciel un à un et se posent sur un nuage ; toucher un mot le fait
+  entendre), allures 🐌 🐢 🐇 🚀 (12 à 50 mots/min), « mot suivant » pour lire
+  à son rythme, voix lente (pauses entre les phrases, mot à mot au plus lent).
+  Récompenses : une étoile par phrase lue, bonus du jour, niveaux, badges,
+  série de jours, 1 à 3 étoiles par histoire.
+- **Studio — bibliothèque** : mes textes (cartes colorées, durée estimée, reprise de
   lecture), six exemples fournis (dont deux fables de La Fontaine), création
   avec l'IA. Enregistrement automatique : pas de bouton « Enregistrer ».
-- **Lecteur plein écran**, six styles :
+- **Lecteur plein écran**, sept styles :
+  - *Dessin animé* — Pluie de mots (voir Coin lecture) ;
   - *Classique* — fonds Nuit, Papier (règle de lecture surligneur), Contraste ;
   - *Vieille école* — écran cathodique vert ou ambre (balayage, lueur,
     démarrage façon ordinateur 8 bits), machine à écrire (frappe lettre à
@@ -63,7 +73,9 @@ position, mot par mot.
 
 - Textes : Trousseau, clé `prompteur.savedTexts.v2` (celle de la v1 : les
   textes existants sont repris tels quels). Ils survivent à une réinstallation.
-- Réglages : `UserDefaults`, clé `bobprompt.readerSettings.v2`.
+- Réglages : `UserDefaults`, clés `bobprompt.readerSettings.v2` (studio) et
+  `bobprompt.kidsSettings.v1` (enfants).
+- Étoiles, niveaux, badges : `UserDefaults`, clé `bobprompt.rewards.v1`.
 - Clé OpenAI facultative : Trousseau, `OPENAI_API_KEY`.
 
 ## IA
@@ -81,9 +93,10 @@ En compilation Debug, des arguments de lancement ouvrent directement un écran :
 ./Scripts/capture_simulator_screenshot.zsh tambour -demoScreen reader -demoStyle drum -demoWord 30
 ```
 
-`-demoScreen` : `reader`, `styles`, `settings`, `editor`, `create`, `premium`,
-`help` · `-demoStyle` : `classic`, `crtGreen`, `crtAmber`, `typewriter`,
-`drum`, `cards` · `-demoTheme` : `night`, `paper`, `contrast` ·
+`-demoScreen` : `kids`, `studio`, `rewards`, `reader`, `styles`, `settings`,
+`editor`, `create`, `premium`, `help` · `-demoProfile` : `kids`, `studio` ·
+`-demoSpeed n` · `-demoStyle` : `sky`, `classic`, `crtGreen`, `crtAmber`,
+`typewriter`, `drum`, `cards` · `-demoTheme` : `night`, `paper`, `contrast` ·
 `-demoSample n` · `-demoWord n` · `-demoPlay YES` · `-demoVoice YES` ·
 `-demoSeed YES` (textes fictifs en mémoire) · `-demoPremium YES|NO`.
 

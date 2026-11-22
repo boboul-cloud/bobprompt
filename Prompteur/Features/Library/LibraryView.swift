@@ -6,6 +6,7 @@ struct LibraryView: View {
     @Environment(SettingsStore.self) private var settings
     @Environment(AppRouter.self) private var router
     @Environment(PurchaseManager.self) private var purchases
+    @Environment(\.dismiss) private var dismiss
     @State private var pendingDelete: Script?
 
     private let columns = [GridItem(.adaptive(minimum: 300, maximum: 520), spacing: 14)]
@@ -43,8 +44,20 @@ struct LibraryView: View {
     // MARK: En-tête
 
     private var header: some View {
-        HStack(alignment: .center) {
-            Wordmark(size: 32)
+        HStack(alignment: .center, spacing: 12) {
+            Button { dismiss() } label: {
+                Image(systemName: "chevron.left")
+                    .font(.system(size: 16, weight: .bold))
+                    .frame(width: 40, height: 40)
+                    .background(Circle().fill(Palette.surface))
+                    .overlay(Circle().strokeBorder(Palette.hairline))
+            }
+            .foregroundStyle(Palette.ink)
+            .accessibilityLabel("Accueil")
+            VStack(alignment: .leading, spacing: 0) {
+                Text("STUDIO").font(Typo.caption(11)).tracking(1.4).foregroundStyle(Palette.onAir)
+                Text("Prompteur").font(Typo.headline(20)).foregroundStyle(Palette.ink)
+            }
             Spacer()
             Button { router.sheet = .help } label: {
                 Image(systemName: "questionmark")
@@ -83,7 +96,7 @@ struct LibraryView: View {
                 }
                 .buttonStyle(PrimaryButtonStyle())
 
-                Button { router.sheet = .create } label: {
+                Button { router.sheet = .create(.studio) } label: {
                     Label("Avec l'IA", systemImage: "sparkles")
                 }
                 .buttonStyle(SoftButtonStyle(tint: Palette.indigo))

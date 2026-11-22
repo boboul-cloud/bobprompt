@@ -4,10 +4,11 @@ import UIKit
 // MARK: - Styles d'affichage
 
 enum StageFamily: String, CaseIterable, Identifiable {
-    case classic, retro, threeD
+    case cartoon, classic, retro, threeD
     var id: String { rawValue }
     var title: String {
         switch self {
+        case .cartoon: return "Dessin animé"
         case .classic: return "Classique"
         case .retro: return "Vieille école"
         case .threeD: return "3D"
@@ -15,13 +16,31 @@ enum StageFamily: String, CaseIterable, Identifiable {
     }
 }
 
+/// Pour qui on lit : le coin des enfants ou le studio (ados, adultes).
+/// Chacun garde ses propres réglages.
+enum ReaderProfile: String, Codable, Hashable {
+    case kids, studio
+}
+
+private struct ReaderProfileKey: EnvironmentKey {
+    static let defaultValue: ReaderProfile = .studio
+}
+
+extension EnvironmentValues {
+    var readerProfile: ReaderProfile {
+        get { self[ReaderProfileKey.self] }
+        set { self[ReaderProfileKey.self] = newValue }
+    }
+}
+
 enum StageStyle: String, Codable, CaseIterable, Identifiable {
-    case classic, crtGreen, crtAmber, typewriter, drum, cards
+    case sky, classic, crtGreen, crtAmber, typewriter, drum, cards
 
     var id: String { rawValue }
 
     var family: StageFamily {
         switch self {
+        case .sky: return .cartoon
         case .classic: return .classic
         case .crtGreen, .crtAmber, .typewriter: return .retro
         case .drum, .cards: return .threeD
@@ -30,6 +49,7 @@ enum StageStyle: String, Codable, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
+        case .sky: return "Pluie de mots"
         case .classic: return "Prompteur"
         case .crtGreen: return "Cathodique"
         case .crtAmber: return "Ambre"
@@ -41,6 +61,7 @@ enum StageStyle: String, Codable, CaseIterable, Identifiable {
 
     var subtitle: String {
         switch self {
+        case .sky: return "Les mots tombent sur un nuage"
         case .classic: return "Défilement net et réglable"
         case .crtGreen: return "Écran vert des années 80"
         case .crtAmber: return "Moniteur ambre, lueur chaude"
@@ -52,6 +73,7 @@ enum StageStyle: String, Codable, CaseIterable, Identifiable {
 
     var symbol: String {
         switch self {
+        case .sky: return "cloud.sun.fill"
         case .classic: return "text.alignleft"
         case .crtGreen: return "tv"
         case .crtAmber: return "display"
@@ -62,7 +84,7 @@ enum StageStyle: String, Codable, CaseIterable, Identifiable {
     }
 
     /// Le style gère-t-il un défilement continu (vitesse en lignes) ?
-    var isContinuous: Bool { self != .cards && self != .typewriter }
+    var isContinuous: Bool { self != .cards && self != .typewriter && self != .sky }
 
     /// Les syllabes colorées ont-elles un sens dans ce style ?
     var supportsSyllables: Bool { true }
@@ -170,7 +192,57 @@ struct ReaderSettings: Codable, Equatable {
     var retroUppercase = false
     var motionParallax = true
 
-    static let speedRange: ClosedRange<Double> = 40...260
+    static let speedRange: ClosedRange<Double> = 10...260
+
+    /// Réglages de départ du coin des enfants : lent, coloré, dessin animé.
+    static var kidsDefaults: ReaderSettings {
+        var s = ReaderSettings()
+        s.style = .sky
+        s.wordsPerMinute = 20
+        s.fontSize = 46
+        s.countdown = false
+        s.readingLine = 0.42
+        return s
+    }
+
+    /// Pas des boutons − / + : fin aux vitesses lentes, plus large aux rapides.
+    static func speedStep(_ wpm: Double, up: Bool) -> Double {
+        let probe = up ? wpm : wpm - 0.01
+        if probe < 30 { return 2 }
+        if probe < 80 { return 5 }
+        return 10
+    }
+
+    static func stepped(_ wpm: Double, up: Bool) -> Double {
+        let step = speedStep(wpm, up: up)
+        let next = up ? (wpm / step).rounded(.down) * step + step : (wpm / step).rounded(.up) * step - step
+        return min(speedRange.upperBound, max(speedRange.lowerBound, next))
+    }
+
+    /// Allures nommées (curseur et boutons des enfants).
+    struct Pace: Identifiable {
+        let emoji: String
+        let name: String
+        let wpm: Double
+        var id: String { name }
+    }
+
+    static let kidsPaces: [Pace] = [
+        Pace(emoji: "🐌", name: "Escargot", wpm: 12),
+        Pace(emoji: "🐢", name: "Tortue", wpm: 20),
+        Pace(emoji: "🐇", name: "Lapin", wpm: 32),
+        Pace(emoji: "🚀", name: "Fusée", wpm: 50)
+    ]
+
+    static func paceLabel(_ wpm: Double) -> String {
+        switch wpm {
+        case ..<16: return "🐌 J'apprends à lire"
+        case ..<30: return "🐢 Je lis doucement"
+        case ..<60: return "🐇 Je lis bien"
+        case ..<130: return "🦊 Lecture fluide"
+        default: return "🚀 Orateur"
+        }
+    }
     static let fontRange: ClosedRange<Double> = 22...96
 
     init() {}
@@ -207,35 +279,58 @@ struct ReaderSettings: Codable, Equatable {
         fontSize = min(max(fontSize, Self.fontRange.lowerBound), Self.fontRange.upperBound)
     }
 
+    /// Le texte s'affiche-t-il sur un fond sombre dans le style choisi ?
+    var textOnDark: Bool {
+        switch style {
+        case .classic: return classicTheme.isDark
+        case .sky, .typewriter, .cards: return false
+        case .crtGreen, .crtAmber, .drum: return true
+        }
+    }
+
     func syllableColors(onDark: Bool) -> (Color, Color) {
         palette.colors(onDark: onDark, custom: (customColor1, customColor2))
     }
 }
 
-/// Réglages persistés (UserDefaults), partagés par tout le lecteur.
+/// Réglages persistés (UserDefaults) : un jeu pour le studio, un pour les enfants.
 @MainActor
 @Observable
 final class SettingsStore {
+    /// Réglages du studio (ados, adultes).
     var reader: ReaderSettings {
-        didSet { if reader != oldValue { save() } }
+        didSet { if reader != oldValue { save(reader, Self.studioKey) } }
+    }
+    /// Réglages du coin des enfants.
+    var kids: ReaderSettings {
+        didSet { if kids != oldValue { save(kids, Self.kidsKey) } }
     }
 
     private let defaults: UserDefaults
-    private static let key = "bobprompt.readerSettings.v2"
+    private static let studioKey = "bobprompt.readerSettings.v2"
+    private static let kidsKey = "bobprompt.kidsSettings.v1"
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
-        if let data = defaults.data(forKey: Self.key),
-           let decoded = try? JSONDecoder().decode(ReaderSettings.self, from: data) {
-            reader = decoded
-        } else {
-            reader = ReaderSettings()
-        }
+        reader = Self.load(defaults, Self.studioKey) ?? ReaderSettings()
+        kids = Self.load(defaults, Self.kidsKey) ?? .kidsDefaults
     }
 
-    private func save() {
-        if let data = try? JSONEncoder().encode(reader) {
-            defaults.set(data, forKey: Self.key)
-        }
+    subscript(profile: ReaderProfile) -> ReaderSettings {
+        get { profile == .kids ? kids : reader }
+        set { if profile == .kids { kids = newValue } else { reader = newValue } }
+    }
+
+    func binding(_ profile: ReaderProfile) -> Binding<ReaderSettings> {
+        Binding(get: { self[profile] }, set: { self[profile] = $0 })
+    }
+
+    private static func load(_ d: UserDefaults, _ key: String) -> ReaderSettings? {
+        guard let data = d.data(forKey: key) else { return nil }
+        return try? JSONDecoder().decode(ReaderSettings.self, from: data)
+    }
+
+    private func save(_ s: ReaderSettings, _ key: String) {
+        if let data = try? JSONEncoder().encode(s) { defaults.set(data, forKey: key) }
     }
 }

@@ -6,6 +6,7 @@ struct BobpromptApp: App {
     @State private var store: ScriptStore
     @State private var settings = SettingsStore()
     @State private var router = AppRouter()
+    @State private var rewards: RewardStore
     @Environment(\.scenePhase) private var scenePhase
 
     init() {
@@ -18,6 +19,13 @@ struct BobpromptApp: App {
         #endif
         s.isPremium = { PurchaseManager.shared.isPremium }
         _store = State(initialValue: s)
+        #if DEBUG
+        let r = DemoConfig.current.seed ? RewardStore(defaults: UserDefaults(suiteName: "demo-rewards")!) : RewardStore()
+        if DemoConfig.current.seed { DemoConfig.seedRewards(r) }
+        #else
+        let r = RewardStore()
+        #endif
+        _rewards = State(initialValue: r)
     }
 
     var body: some Scene {
@@ -27,6 +35,7 @@ struct BobpromptApp: App {
                 .environment(store)
                 .environment(settings)
                 .environment(router)
+                .environment(rewards)
                 .tint(Palette.onAir)
         }
         .onChange(of: scenePhase) { _, phase in
@@ -43,17 +52,25 @@ struct RootView: View {
     var body: some View {
         @Bindable var router = router
         NavigationStack(path: $router.path) {
-            LibraryView()
-                .navigationDestination(for: UUID.self) { id in EditorView(scriptID: id) }
+            HomeView()
+                .navigationDestination(for: AppRouter.Route.self) { route in
+                    switch route {
+                    case .kids: KidsHomeView()
+                    case .studio: LibraryView()
+                    case .rewards: RewardsView()
+                    case .editor(let id, let profile):
+                        EditorView(scriptID: id).environment(\.readerProfile, profile)
+                    }
+                }
         }
-        .fullScreenCover(item: $router.reading) { script in
-            ReaderView(script: script)
+        .fullScreenCover(item: $router.reading) { r in
+            ReaderView(script: r.script, profile: r.profile)
         }
         .sheet(item: $router.sheet) { sheet in
             switch sheet {
             case .premium: PremiumView()
             case .help: HelpView()
-            case .create: AICreateView()
+            case .create(let profile): AICreateView().environment(\.readerProfile, profile)
             }
         }
         #if DEBUG
@@ -75,6 +92,8 @@ struct DemoConfig {
     var seed = false
     var premium: Bool?
     var voice = false
+    var profile: ReaderProfile = .studio
+    var speed: Double?
 
     static let current: DemoConfig = {
         let d = UserDefaults.standard
@@ -88,6 +107,8 @@ struct DemoConfig {
         c.seed = d.bool(forKey: "demoSeed")
         c.premium = d.object(forKey: "demoPremium") == nil ? nil : d.bool(forKey: "demoPremium")
         c.voice = d.bool(forKey: "demoVoice")
+        c.speed = d.object(forKey: "demoSpeed") == nil ? nil : d.double(forKey: "demoSpeed")
+        c.profile = d.string(forKey: "demoProfile").flatMap(ReaderProfile.init(rawValue:)) ?? .studio
         return c
     }()
 
@@ -105,20 +126,34 @@ struct DemoConfig {
     ]
 
     @MainActor
+    static func seedRewards(_ r: RewardStore) {
+        r.reset()
+        let yesterday = Date().addingTimeInterval(-86_400)
+        for _ in 0..<38 { r.sentenceRead(today: yesterday) }
+        r.textFinished(SampleScripts.dragon.id, wordsPerMinute: 20)
+        r.textProgress(SampleScripts.corbeau.id, fraction: 0.5)
+        r.sentenceRead()
+    }
+
+    @MainActor
     func apply(router: AppRouter, store: ScriptStore, settings: SettingsStore) {
         if let premium { PurchaseManager.shared.debugSetPremium(premium) }
-        if let style { settings.reader.style = style }
-        if let theme { settings.reader.classicTheme = theme }
-        if voice { settings.reader.voiceOn = true }
+        if let style { settings[profile].style = style }
+        if let theme { settings[profile].classicTheme = theme }
+        if voice { settings[profile].voiceOn = true }
+        if let speed { settings[profile].wordsPerMinute = speed }
         guard let screen else { return }
         var script = SampleScripts.all[min(max(0, sample), SampleScripts.all.count - 1)]
         if seed, sample < 0, let first = store.scripts.first { script = first }
         switch screen {
-        case "reader", "styles", "settings": router.reading = script
+        case "reader", "styles", "settings": router.reading = .init(script: script, profile: profile)
         case "editor": if let s = store.scripts.first { router.edit(s.id) }
-        case "create": router.sheet = .create
+        case "create": router.sheet = .create(profile)
         case "premium": router.sheet = .premium
         case "help": router.sheet = .help
+        case "kids": router.path = [.kids]
+        case "studio": router.path = [.studio]
+        case "rewards": router.path = [.kids, .rewards]
         default: break
         }
     }

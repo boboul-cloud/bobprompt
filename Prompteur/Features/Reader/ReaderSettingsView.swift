@@ -5,64 +5,62 @@ import AVFoundation
 struct ReaderSettingsView: View {
     @Environment(SettingsStore.self) private var store
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.readerProfile) private var profile
     @State private var voices: [AVSpeechSynthesisVoice] = []
     @State private var tester = SpeechEngine()
     @State private var c1 = Color.blue
     @State private var c2 = Color.red
 
     var body: some View {
-        @Bindable var store = store
+        let s = store.binding(profile)
         NavigationStack {
             Form {
                 Section {
-                    SyllablePreview(settings: store.reader)
+                    SyllablePreview(settings: s.wrappedValue)
                         .listRowInsets(EdgeInsets())
                         .listRowBackground(Color.clear)
                 }
 
                 Section("Vitesse et taille") {
-                    LabeledSlider(title: "Vitesse", value: $store.reader.wordsPerMinute,
-                                  range: ReaderSettings.speedRange, step: 5,
-                                  minSymbol: "tortoise.fill", maxSymbol: "hare.fill",
-                                  format: { "\(Int($0)) mots/min" })
-                    LabeledSlider(title: "Taille du texte", value: $store.reader.fontSize,
+                    SpeedSlider(value: s.wordsPerMinute)
+                    LabeledSlider(title: "Taille du texte", value: s.fontSize,
                                   range: ReaderSettings.fontRange, step: 2,
                                   minSymbol: "textformat.size.smaller", maxSymbol: "textformat.size.larger",
                                   format: { "\(Int($0)) pt" })
-                    Picker("Police", selection: $store.reader.font) {
+                    Picker("Police", selection: s.font) {
                         ForEach(ReadingFont.allCases) { f in Text(f.title).tag(f) }
                     }
                     .pickerStyle(.segmented)
                 }
 
                 Section("Mise en page") {
-                    Picker("Alignement", selection: $store.reader.alignment) {
+                    Picker("Alignement", selection: s.alignment) {
                         ForEach(TextAlign.allCases) { a in Text(a.title).tag(a) }
                     }
                     .pickerStyle(.segmented)
-                    Toggle("Un mot par ligne", isOn: $store.reader.oneWordPerLine)
-                    Toggle("Éclairer la ligne lue", isOn: $store.reader.focusLine)
-                    LabeledSlider(title: "Ligne de lecture", value: $store.reader.readingLine,
+                    Toggle("Un mot par ligne", isOn: s.oneWordPerLine)
+                    Toggle("Éclairer la ligne lue", isOn: s.focusLine)
+                    LabeledSlider(title: "Ligne de lecture", value: s.readingLine,
                                   range: 0.22...0.62, step: 0.02,
                                   minSymbol: "arrow.up.to.line", maxSymbol: "arrow.down.to.line",
                                   format: { $0 < 0.32 ? "En haut" : ($0 > 0.5 ? "Au centre" : "Au tiers") })
-                    if store.reader.style.family == .retro {
-                        Toggle("Tout en majuscules", isOn: $store.reader.retroUppercase)
+                    if s.wrappedValue.style.family == .retro {
+                        Toggle("Tout en majuscules", isOn: s.retroUppercase)
                     }
                 }
 
                 Section {
-                    Toggle("Syllabes en couleurs", isOn: $store.reader.syllables)
-                    if store.reader.syllables {
+                    Toggle("Syllabes en couleurs", isOn: s.syllables)
+                    if s.wrappedValue.syllables {
                         paletteChooser
-                        if store.reader.palette == .custom {
+                        if s.wrappedValue.palette == .custom {
                             ColorPicker("Couleur 1", selection: $c1, supportsOpacity: false)
-                                .onChange(of: c1) { _, v in store.reader.customColor1 = v.hexString() }
+                                .onChange(of: c1) { _, v in s.wrappedValue.customColor1 = v.hexString() }
                             ColorPicker("Couleur 2", selection: $c2, supportsOpacity: false)
-                                .onChange(of: c2) { _, v in store.reader.customColor2 = v.hexString() }
+                                .onChange(of: c2) { _, v in s.wrappedValue.customColor2 = v.hexString() }
                         }
                     }
-                    Toggle("Surligner le mot en cours", isOn: $store.reader.highlightWord)
+                    Toggle("Surligner le mot en cours", isOn: s.highlightWord)
                 } header: {
                     Text("Aide à la lecture")
                 } footer: {
@@ -70,8 +68,8 @@ struct ReaderSettingsView: View {
                 }
 
                 Section {
-                    Toggle("Lire à voix haute", isOn: $store.reader.voiceOn)
-                    Picker("Voix", selection: $store.reader.voiceID) {
+                    Toggle("Lire à voix haute", isOn: s.voiceOn)
+                    Picker("Voix", selection: s.voiceID) {
                         Text("Automatique").tag("")
                         ForEach(voices, id: \.identifier) { v in
                             Text(SpeechEngine.displayName(v)).tag(v.identifier)
@@ -79,8 +77,8 @@ struct ReaderSettingsView: View {
                     }
                     Button {
                         tester.preview("Bonjour ! Je vais lire ton texte avec toi.",
-                                       voiceID: store.reader.voiceID,
-                                       wordsPerMinute: store.reader.wordsPerMinute)
+                                       voiceID: s.wrappedValue.voiceID,
+                                       wordsPerMinute: s.wrappedValue.wordsPerMinute)
                     } label: {
                         Label("Écouter cette voix", systemImage: "play.circle.fill")
                     }
@@ -91,16 +89,16 @@ struct ReaderSettingsView: View {
                 }
 
                 Section {
-                    Toggle(isOn: $store.reader.mirror) {
+                    Toggle(isOn: s.mirror) {
                         Label("Miroir", systemImage: "arrow.left.and.right.righttriangle.left.righttriangle.right")
                     }
-                    Toggle(isOn: $store.reader.countdown) {
+                    Toggle(isOn: s.countdown) {
                         Label("Compte à rebours 3-2-1", systemImage: "timer")
                     }
-                    Toggle(isOn: $store.reader.sounds) {
+                    Toggle(isOn: s.sounds) {
                         Label("Sons de la machine à écrire", systemImage: "speaker.wave.1")
                     }
-                    Toggle(isOn: $store.reader.motionParallax) {
+                    Toggle(isOn: s.motionParallax) {
                         Label("3D : suivre l'inclinaison", systemImage: "gyroscope")
                     }
                 } header: {
@@ -111,9 +109,9 @@ struct ReaderSettingsView: View {
 
                 Section {
                     Button("Rétablir les réglages par défaut", role: .destructive) {
-                        let style = store.reader.style
-                        store.reader = ReaderSettings()
-                        store.reader.style = style
+                        let style = s.wrappedValue.style
+                        s.wrappedValue = profile == .kids ? .kidsDefaults : ReaderSettings()
+                        s.wrappedValue.style = style
                     }
                 }
             }
@@ -126,8 +124,8 @@ struct ReaderSettingsView: View {
             }
             .onAppear {
                 voices = SpeechEngine.frenchVoices
-                c1 = Color(hex: store.reader.customColor1)
-                c2 = Color(hex: store.reader.customColor2)
+                c1 = Color(hex: s.wrappedValue.customColor1)
+                c2 = Color(hex: s.wrappedValue.customColor2)
             }
             .onDisappear { tester.stop() }
         }
@@ -137,13 +135,13 @@ struct ReaderSettingsView: View {
     }
 
     private var paletteChooser: some View {
-        @Bindable var store = store
+        let s = store.binding(profile)
         return HStack(spacing: 10) {
             ForEach(SyllablePalette.allCases) { p in
-                let (a, b) = p.colors(onDark: false, custom: (store.reader.customColor1, store.reader.customColor2))
-                let selected = store.reader.palette == p
+                let (a, b) = p.colors(onDark: false, custom: (s.wrappedValue.customColor1, s.wrappedValue.customColor2))
+                let selected = s.wrappedValue.palette == p
                 Button {
-                    store.reader.palette = p
+                    s.wrappedValue.palette = p
                     Haptics.tick()
                 } label: {
                     VStack(spacing: 6) {
@@ -173,7 +171,7 @@ struct SyllablePreview: View {
     private static let doc = PrompterDocument(text: "Le petit dragon s'amuse avec un papillon.")
 
     var body: some View {
-        let dark = settings.style.family != .classic || settings.classicTheme.isDark
+        let dark = settings.textOnDark
         var paint = LinePaint(base: dark ? Color(hex: "#F4F0E6") : Color(hex: "#1C1A17"))
         if settings.syllables {
             let (a, b) = settings.syllableColors(onDark: dark)
@@ -222,5 +220,48 @@ struct LabeledSlider: View {
         .padding(.vertical, 2)
         .accessibilityElement(children: .combine)
         .accessibilityValue(format(value))
+    }
+}
+
+/// Curseur de vitesse progressif : la moitié gauche couvre les allures
+/// d'apprentissage (10 à 50 mots/min), où chaque cran compte.
+struct SpeedSlider: View {
+    @Binding var value: Double
+    private let lo = ReaderSettings.speedRange.lowerBound
+    private let hi = ReaderSettings.speedRange.upperBound
+
+    private var position: Binding<Double> {
+        Binding(
+            get: { log(max(lo, value) / lo) / log(hi / lo) },
+            set: { t in
+                let raw = lo * pow(hi / lo, t)
+                let step: Double = raw < 30 ? 1 : (raw < 100 ? 5 : 10)
+                value = min(hi, max(lo, (raw / step).rounded() * step))
+            })
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Text("Vitesse")
+                Spacer()
+                Text("\(Int(value)) mots/min").foregroundStyle(.secondary).monospacedDigit()
+            }
+            HStack(spacing: 10) {
+                Text("🐌")
+                Slider(value: position, in: 0...1)
+                Text("🚀")
+            }
+            Text(ReaderSettings.paceLabel(value))
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(.secondary)
+        }
+        .padding(.vertical, 2)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Vitesse")
+        .accessibilityValue("\(Int(value)) mots par minute, \(ReaderSettings.paceLabel(value))")
+        .accessibilityAdjustableAction { dir in
+            value = ReaderSettings.stepped(value, up: dir == .increment)
+        }
     }
 }
