@@ -6,28 +6,44 @@ struct HomeView: View {
     @Environment(RewardStore.self) private var rewards
     @Environment(PurchaseManager.self) private var purchases
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.horizontalSizeClass) private var sizeClass
     @State private var appeared = false
 
+    /// iPad : portes côte à côte, contenu centré dans la hauteur.
+    private var wide: Bool { sizeClass == .regular }
+
     var body: some View {
-        ZStack {
-            SkyBackground(night: scheme == .dark)
-            ScrollView {
-                VStack(spacing: 18) {
-                    topBar
-                    hero
-                    kidsDoor
-                        .modifier(Appear(on: appeared, delay: 0.1))
-                    studioDoor
-                        .modifier(Appear(on: appeared, delay: 0.2))
-                    footer
-                        .modifier(Appear(on: appeared, delay: 0.3))
+        GeometryReader { geo in
+            ZStack {
+                SkyBackground(night: scheme == .dark)
+                ScrollView {
+                    VStack(spacing: wide ? 28 : 18) {
+                        topBar
+                        if wide { Spacer(minLength: 0) }
+                        hero
+                        if wide {
+                            HStack(alignment: .top, spacing: 20) {
+                                kidsDoor.modifier(Appear(on: appeared, delay: 0.1))
+                                studioDoor.modifier(Appear(on: appeared, delay: 0.2))
+                            }
+                            .fixedSize(horizontal: false, vertical: true)
+                        } else {
+                            kidsDoor.modifier(Appear(on: appeared, delay: 0.1))
+                            studioDoor.modifier(Appear(on: appeared, delay: 0.2))
+                        }
+                        footer
+                            .frame(maxWidth: wide ? 520 : .infinity)
+                            .modifier(Appear(on: appeared, delay: 0.3))
+                        if wide { Spacer(minLength: 0) }
+                    }
+                    .padding(.horizontal, wide ? 40 : 20)
+                    .padding(.bottom, 40)
+                    .frame(maxWidth: wide ? 1040 : 620)
+                    .frame(maxWidth: .infinity)
+                    .frame(minHeight: wide ? geo.size.height - 20 : nil)
                 }
-                .padding(.horizontal, 20)
-                .padding(.bottom, 40)
-                .frame(maxWidth: 620)
-                .frame(maxWidth: .infinity)
+                .scrollIndicators(.hidden)
             }
-            .scrollIndicators(.hidden)
         }
         .toolbar(.hidden, for: .navigationBar)
         .onAppear { withAnimation(.spring(response: 0.7, dampingFraction: 0.8)) { appeared = true } }
@@ -61,11 +77,12 @@ struct HomeView: View {
 
     private var hero: some View {
         HStack(alignment: .bottom, spacing: 4) {
-            Mascot(mood: appeared ? .happy : .curious, size: 128)
+            Mascot(mood: appeared ? .happy : .curious, size: wide ? 190 : 128)
             SpeechBubble(text: "\(greeting)\nJe suis Bob. On lit ensemble ?")
-                .padding(.bottom, 58)
+                .scaleEffect(wide ? 1.3 : 1, anchor: .bottomLeading)
+                .padding(.bottom, wide ? 96 : 58)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity, alignment: wide ? .center : .leading)
         .padding(.top, 6)
     }
 
@@ -153,6 +170,7 @@ struct HomeView: View {
                     .frame(width: 104, height: 92)
             }
             .padding(22)
+            .frame(maxHeight: wide ? .infinity : nil)
             .background(
                 ZStack {
                     RoundedRectangle(cornerRadius: 30, style: .continuous).fill(Color(hex: "#0B0D1A")).offset(y: 6)

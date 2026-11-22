@@ -22,6 +22,8 @@ struct ReaderView: View {
     @State private var readingTime: TimeInterval = 0
     @State private var playStartedAt: Date?
     @State private var safeArea = EdgeInsets()
+    /// Captures App Store (mode démo) : ni commandes ni barre de progression.
+    @State private var demoClean = false
     // Récompenses (coin des enfants)
     @State private var track = SentenceTrack()
     @State private var gain: RewardStore.Gain?
@@ -75,7 +77,7 @@ struct ReaderView: View {
                 .allowsHitTesting(controlsVisible)
                 .animation(.easeInOut(duration: 0.3), value: controlsVisible)
 
-            if !controlsVisible { miniProgress }
+            if !controlsVisible && !demoClean { miniProgress }
 
             if case .countdown(let n) = engine.phase {
                 CountdownView(value: n, retro: settings.style.family == .retro, accent: accent)
@@ -291,7 +293,8 @@ struct ReaderView: View {
         #if DEBUG
         let demo = DemoConfig.current
         if demo.screen != nil {
-            if let w = demo.word { engine.seek(toWord: w); engine.pause() }
+            if let w = demo.word { engine.seek(toBeat: engine.timeline.beat(atWordPosition: w)); engine.pause() }
+            if demo.clean { controlsVisible = false; demoClean = true }
             track = SentenceTrack(sentence: document.isEmpty ? 0 : document.sentenceIndex(ofWord: engine.currentWord))
             if demo.screen == "styles" { sheet = .styles }
             if demo.screen == "settings" { sheet = .settings }

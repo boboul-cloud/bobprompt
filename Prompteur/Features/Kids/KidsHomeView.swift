@@ -25,9 +25,11 @@ struct KidsHomeView: View {
                     levelCard
                     actions
                     Text("Mes histoires")
-                        .font(.system(size: 26, weight: .black, design: .rounded))
-                        .foregroundStyle(.white)
-                        .shadow(color: KidsPalette.skyDeep.opacity(0.7), radius: 0, y: 2)
+                        .font(.system(size: 22, weight: .black, design: .rounded))
+                        .foregroundStyle(KidsPalette.ink)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 8)
+                        .background(Capsule().fill(.white.opacity(0.92)))
                     LazyVGrid(columns: columns, spacing: 14) {
                         ForEach(Array(stories.enumerated()), id: \.element.id) { i, s in
                             StoryTile(script: s, index: i, stars: rewards.starsFor(s.id),

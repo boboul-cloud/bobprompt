@@ -87,7 +87,10 @@ struct DemoConfig {
     var style: StageStyle?
     var theme: ClassicTheme?
     var sample = 0
-    var word: Int?
+    /// Position en mots (fraction possible : 4.25 = un quart du 5ᵉ mot).
+    var word: Double?
+    /// Lecteur sans commandes ni barre de progression (captures App Store).
+    var clean = false
     var play = false
     var seed = false
     var premium: Bool?
@@ -102,7 +105,8 @@ struct DemoConfig {
         c.style = d.string(forKey: "demoStyle").flatMap(StageStyle.init(rawValue:))
         c.theme = d.string(forKey: "demoTheme").flatMap(ClassicTheme.init(rawValue:))
         c.sample = d.integer(forKey: "demoSample")
-        c.word = d.object(forKey: "demoWord") == nil ? nil : d.integer(forKey: "demoWord")
+        c.word = d.object(forKey: "demoWord") == nil ? nil : d.double(forKey: "demoWord")
+        c.clean = d.bool(forKey: "demoClean")
         c.play = d.bool(forKey: "demoPlay")
         c.seed = d.bool(forKey: "demoSeed")
         c.premium = d.object(forKey: "demoPremium") == nil ? nil : d.bool(forKey: "demoPremium")
@@ -126,13 +130,18 @@ struct DemoConfig {
     ]
 
     @MainActor
+    /// Un lecteur assidu : 4 jours de suite, trois histoires finies, six badges.
     static func seedRewards(_ r: RewardStore) {
         r.reset()
-        let yesterday = Date().addingTimeInterval(-86_400)
-        for _ in 0..<38 { r.sentenceRead(today: yesterday) }
+        for daysAgo in (1...3).reversed() {
+            let day = Date().addingTimeInterval(-86_400 * Double(daysAgo))
+            for _ in 0..<26 { r.sentenceRead(today: day) }
+        }
         r.textFinished(SampleScripts.dragon.id, wordsPerMinute: 20)
-        r.textProgress(SampleScripts.corbeau.id, fraction: 0.5)
-        r.sentenceRead()
+        r.textFinished(SampleScripts.corbeau.id, wordsPerMinute: 20)
+        r.textFinished(SampleScripts.cigale.id, wordsPerMinute: 20)
+        r.textProgress(SampleScripts.herisson.id, fraction: 0.5)
+        for _ in 0..<22 { r.sentenceRead() }
     }
 
     @MainActor

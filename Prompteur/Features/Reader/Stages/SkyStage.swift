@@ -70,7 +70,9 @@ struct SkyStage: View {
     private func sentenceCloud(sentence s: Int, current w: Int, frac: Double, size: CGSize, rain: CGPoint) -> some View {
         let settings = ctx.settings
         let crown: CGFloat = 0.26
-        let cloudW = min(size.width * 0.94, 760)
+        // Grand écran (iPad) : mots et nuage plus grands.
+        let big: CGFloat = size.width > 700 ? 1.5 : 1
+        let cloudW = min(size.width * 0.94, 760 * big)
         let pad: CGFloat = 26
         // Espace libre entre le nuage de pluie et la barre de commandes.
         let zoneTop = rain.y + 62
@@ -78,7 +80,7 @@ struct SkyStage: View {
         let maxCloudH = max(160, zoneBottom - zoneTop)
         let layout = cache.layout(document: ctx.document, sentence: s, maxWidth: cloudW - pad * 2,
                                   maxHeight: maxCloudH * (1 - crown) - pad * 1.6,
-                                  fontSize: settings.fontSize * 1.02, font: settings.font)
+                                  fontSize: settings.fontSize * 1.02 * Double(big), font: settings.font)
         let cloudH = (layout.size.height + pad * 1.6) / (1 - crown)
         let centerY = (zoneTop + zoneBottom) / 2
         let textTop = cloudH * crown + pad * 0.8
