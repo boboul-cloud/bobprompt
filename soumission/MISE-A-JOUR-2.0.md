@@ -150,6 +150,24 @@ langue française, barre d'état 9:41, mode clair).
 
 - `captures/iphone-6.9/` : 1320 × 2868 (iPhone 17 Pro Max)
 - `captures/ipad-13/` : 2064 × 2752 (iPad Pro 13 pouces M5)
+- PNG aplatis, **sans transparence**, profil sRGB, 72 ppp : c'est ce
+  qu'exige App Store Connect (les captures brutes du simulateur ont une
+  couche de transparence et sont refusées ; le script les aplatit).
+
+### Remplacer les captures dans App Store Connect
+
+1. Les captures de la version **en vente (1.x)** sont verrouillées. Il faut
+   d'abord créer la version 2.0 : colonne de gauche, **« + »** à côté de
+   « App iOS », saisir `2.0`. Elle reprend les anciennes captures, qui
+   deviennent modifiables.
+2. Si une version est « En attente d'examen », la retirer de l'examen avant
+   de pouvoir la modifier.
+3. Dans la version 2.0, section « Aperçus et captures d'écran » : onglet
+   **iPhone 6,9 pouces**, « Tout supprimer », puis glisser les 6 fichiers de
+   `captures/iphone-6.9/` (l'ordre des noms 01 → 06 est l'ordre d'affichage).
+4. Même chose dans l'onglet **iPad 13 pouces** avec `captures/ipad-13/`.
+5. Les autres tailles (6,5 pouces, iPad 12,9 pouces…) peuvent rester vides :
+   Apple réduit automatiquement les 6,9 et 13 pouces.
 
 Interface retouchée → relancer `./Scripts/capture_app_store.zsh` avant
 d'envoyer.
@@ -172,7 +190,7 @@ depuis la dernière soumission.
 
 - [ ] Version 2.0 créée dans App Store Connect, build 8 envoyé depuis Xcode (Product › Archive)
 - [ ] Nouveautés, texte promotionnel, description, mots-clés collés ; sous-titre choisi
-- [ ] Les 12 captures remplacées (les anciennes montrent l'interface 1.x)
+- [ ] Les 12 captures remplacées dans la version 2.0 (les anciennes montrent l'interface 1.x)
 - [ ] Notes pour l'examinateur remplacées
 - [ ] Les pages `docs/` (site d'assistance) décrivent encore la v1 : à mettre à jour au moment de la sortie
 - [ ] Rien n'a été créé ni soumis chez Apple par Claude

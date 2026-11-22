@@ -31,6 +31,28 @@ SHOTS=(
   "06-vieille-ecole|6|-demoSeed YES -demoScreen reader -demoStyle crtGreen -demoSample 1 -demoWord 31.5 -demoClean YES"
 )
 
+# App Store Connect refuse les images avec transparence : le simulateur en
+# produit, on les aplatit (fond blanc) et on fixe le profil sRGB.
+flatten() {
+  local f=$1
+  if ! python3 - "$f" 2>/dev/null <<'PY'
+import sys
+from PIL import Image
+f = sys.argv[1]
+im = Image.open(f).convert("RGBA")
+flat = Image.new("RGB", im.size, (255, 255, 255))
+flat.paste(im, mask=im.split()[3])
+flat.save(f, "PNG", dpi=(72, 72), optimize=True)
+PY
+  then
+    # Sans Python/Pillow : aller-retour JPEG qualité maximale (supprime la transparence).
+    sips -s format jpeg -s formatOptions 100 "$f" --out "$f.jpg" >/dev/null
+    sips -s format png "$f.jpg" --out "$f" >/dev/null
+    rm -f "$f.jpg"
+  fi
+  sips --embedProfile "/System/Library/ColorSync/Profiles/sRGB Profile.icc" "$f" >/dev/null
+}
+
 series() {
   local device=$1 folder=$2
   local out="soumission/captures/$folder"
@@ -54,6 +76,7 @@ series() {
     xcrun simctl launch "$device" "$BUNDLE_ID" "${LANG_ARGS[@]}" ${=args} >/dev/null
     sleep "$wait"
     xcrun simctl io "$device" screenshot --type=png "$out/$name.png" >/dev/null 2>&1
+    flatten "$out/$name.png"
     echo "  $out/$name.png"
   done
   xcrun simctl terminate "$device" "$BUNDLE_ID" 2>/dev/null || true
@@ -68,5 +91,6 @@ if [[ $WHICH == all || $WHICH == ipad ]]; then
   series "iPad Pro 13-inch (M5)" "ipad-13"
 fi
 
-echo "Dimensions :"
-sips -g pixelWidth -g pixelHeight soumission/captures/*/*.png | grep -E "png|pixel" | paste - - - | awk '{print $1, $3 "×" $5}'
+echo "Vérification (dimensions, transparence) :"
+sips -g pixelWidth -g pixelHeight -g hasAlpha soumission/captures/*/*.png | grep -E "png|pixel|hasAlpha" \
+  | paste - - - - | awk '{print $1, $3 "×" $5, "transparence:", $7}'
