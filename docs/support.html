@@ -1,220 +1,145 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Support - bobprompt</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-            background: #f5f5f7;
-            color: #333;
-            line-height: 1.7;
-        }
-        
-        .header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 60px 20px;
-            text-align: center;
-        }
-        
-        .header h1 {
-            font-size: 2em;
-            margin-bottom: 8px;
-        }
-        
-        .header p {
-            opacity: 0.9;
-        }
-        
-        .container {
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 40px 20px;
-        }
-        
-        .content {
-            background: white;
-            border-radius: 16px;
-            padding: 40px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
-        }
-        
-        h2 {
-            color: #764ba2;
-            margin: 32px 0 16px 0;
-            font-size: 1.4em;
-        }
-        
-        h2:first-child {
-            margin-top: 0;
-        }
-        
-        p {
-            margin-bottom: 16px;
-            color: #555;
-        }
-        
-        .faq-item {
-            background: #f9f9fb;
-            border-radius: 12px;
-            padding: 20px;
-            margin-bottom: 16px;
-        }
-        
-        .faq-item h3 {
-            color: #333;
-            margin-bottom: 8px;
-            font-size: 1.1em;
-        }
-        
-        .faq-item p {
-            margin-bottom: 0;
-            color: #666;
-        }
-        
-        .contact-card {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border-radius: 16px;
-            padding: 32px;
-            text-align: center;
-            margin-top: 32px;
-        }
-        
-        .contact-card h3 {
-            margin-bottom: 16px;
-            font-size: 1.3em;
-        }
-        
-        .contact-card a {
-            display: inline-block;
-            background: white;
-            color: #764ba2;
-            padding: 12px 32px;
-            border-radius: 25px;
-            text-decoration: none;
-            font-weight: 600;
-            margin-top: 8px;
-        }
-        
-        .contact-card a:hover {
-            transform: scale(1.02);
-        }
-        
-        .back-link {
-            display: inline-block;
-            margin-top: 32px;
-            color: #764ba2;
-            text-decoration: none;
-            font-weight: 500;
-        }
-        
-        .back-link:hover {
-            text-decoration: underline;
-        }
-        
-        .tip {
-            background: #e8f5e9;
-            border-left: 4px solid #4caf50;
-            padding: 16px;
-            margin: 16px 0;
-            border-radius: 0 8px 8px 0;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Aide – bobprompt</title>
+  <meta name="description" content="Aide de bobprompt : coin lecture, pluie de mots, étoiles, Studio prompteur, voix, textes, Premium.">
+  <link rel="apple-touch-icon" href="images/app-icon.png">
+  <link rel="icon" href="images/app-icon.png">
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div class="header">
-        <h1>Support</h1>
-        <p>Comment pouvons-nous vous aider ?</p>
-    </div>
-    
-    <div class="container">
-        <div class="content">
-            <h2>Questions fréquentes</h2>
-            
-            <div class="faq-item">
-                <h3>📜 Comment utiliser le téléprompteur ?</h3>
-                <p>Entrez ou collez votre texte, puis appuyez sur le bouton "Lire". Le texte défilera automatiquement. Utilisez les contrôles pour ajuster la vitesse ou mettre en pause.</p>
-            </div>
-            
-            <div class="faq-item">
-                <h3>🪞 Comment activer le mode miroir ?</h3>
-                <p>Appuyez sur le bouton "Miroir" dans la barre d'outils en bas de l'écran. Le texte sera inversé horizontalement, idéal pour une utilisation avec un vrai téléprompteur.</p>
-            </div>
-            
-            <div class="faq-item">
-                <h3>🎨 À quoi servent les syllabes colorées ?</h3>
-                <p>Cette fonctionnalité alterne les couleurs des syllabes pour faciliter la lecture, particulièrement utile pour les enfants ou les personnes ayant des difficultés de lecture.</p>
-            </div>
-            
-            <div class="faq-item">
-                <h3>💾 Comment sauvegarder mes textes ?</h3>
-                <p>Appuyez sur le bouton "Textes" pour accéder à votre bibliothèque. Vous pouvez y sauvegarder et organiser vos scripts. Note : la version gratuite est limitée à 2 textes.</p>
-            </div>
-            
-            <div class="faq-item">
-                <h3>🤖 Comment utiliser la génération IA ?</h3>
-                <p>Appuyez sur le bouton IA (étoiles). Vous devrez entrer votre propre clé API OpenAI dans les paramètres. Décrivez ensuite le contenu souhaité et l'IA le générera pour vous.</p>
-            </div>
-            
-            <div class="faq-item">
-                <h3>🔑 Où obtenir une clé API OpenAI ?</h3>
-                <p>Rendez-vous sur <a href="https://platform.openai.com/api-keys" target="_blank">platform.openai.com</a>, créez un compte, puis générez une clé API. Des frais peuvent s'appliquer selon votre utilisation.</p>
-            </div>
-            
-            <div class="faq-item">
-                <h3>👑 Comment passer à Premium ?</h3>
-                <p>Appuyez sur la bannière "Passez Premium" ou sur le badge Premium pour accéder à la page d'achat. L'achat est unique et débloque toutes les fonctionnalités à vie.</p>
-            </div>
-            
-            <div class="faq-item">
-                <h3>🔄 Comment restaurer mes achats ?</h3>
-                <p>Allez dans la page Premium et appuyez sur "Restaurer mes achats". Assurez-vous d'être connecté avec le même compte Apple utilisé lors de l'achat initial.</p>
-            </div>
-            
-            <h2>Conseils d'utilisation</h2>
-            
-            <div class="tip">
-                <p><strong>💡 Astuce :</strong> Pour une meilleure lisibilité lors de vos présentations, augmentez la taille du texte et choisissez un thème avec un bon contraste.</p>
-            </div>
-            
-            <div class="tip">
-                <p><strong>💡 Astuce :</strong> Utilisez le compte à rebours (3-2-1) pour vous préparer avant que le défilement ne commence.</p>
-            </div>
-            
-            <h2>Problèmes techniques</h2>
-            
-            <div class="faq-item">
-                <h3>L'application ne répond plus</h3>
-                <p>Fermez complètement l'application et relancez-la. Si le problème persiste, essayez de redémarrer votre appareil.</p>
-            </div>
-            
-            <div class="faq-item">
-                <h3>Mes textes ont disparu</h3>
-                <p>Les textes sont stockés localement. Si vous avez désinstallé l'application, les données peuvent avoir été supprimées. Malheureusement, nous ne pouvons pas les récupérer.</p>
-            </div>
-            
-            <div class="faq-item">
-                <h3>L'achat Premium ne fonctionne pas</h3>
-                <p>Vérifiez votre connexion internet et réessayez. Si le problème persiste, essayez de restaurer vos achats ou contactez le support Apple.</p>
-            </div>
-            
-            <div class="contact-card">
-                <h3>Besoin d'aide supplémentaire ?</h3>
-                <p>Notre équipe est là pour vous aider</p>
-                <a href="mailto:support@bobprompt-app.com">📧 Nous contacter</a>
-            </div>
-            
-            <a href="index.html" class="back-link">← Retour à l'accueil</a>
-        </div>
-    </div>
+  <div class="wrap">
+    <nav class="topnav">
+      <a href="index.html">← bobprompt</a>
+    </nav>
+    <h1 class="page-title">Aide</h1>
+    <p class="page-sub">Les réponses aux questions les plus fréquentes, pour la version 2.0.</p>
+
+    <section class="card">
+      <h2>☁️ Le coin lecture (enfants)</h2>
+      <details>
+        <summary>Comment faire lire une histoire à un enfant ?</summary>
+        <p>Sur l'accueil, touchez <strong>Coin lecture</strong>, choisissez une histoire, puis le gros bouton jaune <strong>▶</strong>. Les mots tombent un à un du nuage de pluie et se posent sur le grand nuage, où la phrase se construit.</p>
+      </details>
+      <details>
+        <summary>La lecture va trop vite (ou trop lentement)</summary>
+        <p>Sous l'histoire, choisissez une allure : 🐌 Escargot, 🐢 Tortue, 🐇 Lapin ou 🚀 Fusée. Pour avancer vraiment à son rythme, mettez en pause et touchez la <strong>flèche verte</strong> : un seul mot arrive à chaque appui.</p>
+        <p>Dans le Studio, le curseur <strong>Vitesse</strong> va de 10 à 260 mots par minute ; sa moitié gauche est réservée aux allures d'apprentissage.</p>
+      </details>
+      <details>
+        <summary>Comment entendre un mot ou une phrase ?</summary>
+        <ul>
+          <li>Touchez un mot posé sur le nuage : il est prononcé.</li>
+          <li>Le bouton rose (oreille) lit la phrase en cours, doucement.</li>
+          <li>« La voix lit » fait lire toute l'histoire : c'est alors la voix qui fait avancer les mots.</li>
+        </ul>
+      </details>
+      <details>
+        <summary>Comment gagne-t-on des étoiles ?</summary>
+        <ul>
+          <li>1 étoile par phrase lue pendant la lecture (faire défiler du doigt ne compte pas) ;</li>
+          <li>3 étoiles de bonus pour la première lecture du jour ;</li>
+          <li>5 étoiles pour une histoire lue jusqu'au bout, qui reçoit alors ses 3 étoiles.</li>
+        </ul>
+        <p>Les étoiles font monter de niveau, de « Graine de lecteur » à « Maître des histoires ». Les badges et la série de jours se trouvent dans <strong>Badges</strong>.</p>
+      </details>
+      <details>
+        <summary>Où sont les réglages pour les parents ?</summary>
+        <p>Pendant la lecture, le bouton <strong>⚙️ Parents</strong> ouvre les réglages : taille et police du texte, couleurs des syllabes, mot surligné, voix, un mot par ligne… Le coin lecture et le Studio gardent chacun leurs propres réglages.</p>
+      </details>
+    </section>
+
+    <section class="card">
+      <h2>🎬 Le Studio prompteur</h2>
+      <details>
+        <summary>Comment utiliser le prompteur ?</summary>
+        <p>Sur l'accueil, touchez <strong>Studio</strong>, puis <strong>Nouveau texte</strong> (ou un exemple), et <strong>Lire</strong>. Touchez le texte pour lancer ou mettre en pause ; glissez vers le haut ou le bas pour avancer ou revenir. Les commandes s'effacent pendant la lecture.</p>
+      </details>
+      <details>
+        <summary>Comment changer de style d'affichage ?</summary>
+        <p>Le bouton de style, en bas du lecteur, propose :</p>
+        <ul>
+          <li><strong>Classique</strong> : fond Nuit, Papier (avec règle de lecture) ou Contraste ;</li>
+          <li><strong>Vieille école</strong> : écran cathodique vert ou ambre, machine à écrire ;</li>
+          <li><strong>3D</strong> : tambour (glisser pour tourner, glisser sur le côté pour pivoter, pincer pour zoomer) ou cartes ;</li>
+          <li><strong>Dessin animé</strong> : la pluie de mots.</li>
+        </ul>
+      </details>
+      <details>
+        <summary>Comment activer le mode miroir ?</summary>
+        <p>Dans le lecteur, bouton <strong>Aa</strong> (réglages) › <strong>Miroir</strong>. Le texte est inversé pour un prompteur à vitre.</p>
+      </details>
+      <details>
+        <summary>Peut-on piloter avec une télécommande ou un clavier ?</summary>
+        <p>Oui, avec une télécommande Bluetooth ou un clavier : <strong>espace</strong> = lecture / pause, <strong>↑ ↓</strong> ou <strong>page précédente / suivante</strong> = phrase, <strong>← →</strong> = vitesse, <strong>Entrée</strong> = mot suivant, <strong>Échap</strong> = fermer.</p>
+      </details>
+      <details>
+        <summary>Comment avoir une voix de meilleure qualité ?</summary>
+        <p>Installez une voix française « améliorée » ou « premium » dans les Réglages de l'iPhone : Accessibilité › Contenu énoncé › Voix › Français. Choisissez-la ensuite dans les réglages du lecteur.</p>
+      </details>
+    </section>
+
+    <section class="card">
+      <h2>💾 Mes textes</h2>
+      <details>
+        <summary>Comment enregistrer un texte ?</summary>
+        <p>Rien à faire : tout s'enregistre au fil de la frappe. La version gratuite garde 2 textes personnels, Premium en garde 50. Les six exemples fournis ne comptent pas ; pour en modifier un, touchez l'icône de copie dans le lecteur.</p>
+      </details>
+      <details>
+        <summary>Mes textes survivent-ils à une réinstallation ?</summary>
+        <p>Oui : ils sont conservés dans le Trousseau de l'appareil, même après une désinstallation. Ils ne se synchronisent pas d'un appareil à l'autre. Les textes de la version 1 sont repris tels quels.</p>
+      </details>
+      <details>
+        <summary>Comment inventer une histoire avec l'IA ?</summary>
+        <p>Touchez <strong>Inventer</strong>, donnez un sujet, choisissez pour qui, le type de texte, le ton et la longueur. bobprompt utilise <strong>Apple Intelligence</strong> directement sur l'appareil (iOS 26, modèles compatibles, à activer dans les Réglages). Sinon, vous pouvez saisir votre propre clé OpenAI dans « Moteur » (créée sur <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener">platform.openai.com</a> ; OpenAI facture son utilisation).</p>
+      </details>
+    </section>
+
+    <section class="card">
+      <h2>👑 Premium</h2>
+      <details>
+        <summary>Que débloque Premium ?</summary>
+        <p>Un achat unique, sans abonnement : 50 textes personnels au lieu de 2. Toutes les autres fonctions sont gratuites.</p>
+      </details>
+      <details>
+        <summary>Comment acheter ou restaurer Premium ?</summary>
+        <p>Touchez la <strong>couronne</strong> en haut de l'accueil ou du Studio. Sur la même page, <strong>Restaurer mes achats</strong> récupère un achat fait avec le même compte Apple, sur un autre appareil ou après une réinstallation.</p>
+      </details>
+    </section>
+
+    <section class="card">
+      <h2>🛠️ Un problème ?</h2>
+      <details>
+        <summary>Je n'entends pas la voix</summary>
+        <p>Montez le volume de l'appareil (la voix joue même en mode silencieux). Vérifiez qu'une voix française est installée : Réglages › Accessibilité › Contenu énoncé › Voix.</p>
+      </details>
+      <details>
+        <summary>Le tambour 3D ne suit pas l'inclinaison</summary>
+        <p>Vérifiez le réglage « 3D : suivre l'inclinaison » dans les réglages du lecteur. Quand la vue a tourné, un bouton apparaît en haut à droite pour la recentrer.</p>
+      </details>
+      <details>
+        <summary>L'application ne répond plus</summary>
+        <p>Fermez complètement l'application et relancez-la. Si le problème continue, redémarrez l'appareil.</p>
+      </details>
+      <div class="tip">💡 Pour présenter devant une caméra : style Classique, fond Contraste, grande taille de texte, ligne de lecture en haut.</div>
+    </section>
+
+    <section class="card contact">
+      <h2>Besoin d'aide ?</h2>
+      <p>Écrivez-nous, nous répondons en français.</p>
+      <a class="btn" href="mailto:support@bobprompt-app.com">📧 Nous contacter</a>
+    </section>
+  </div>
+
+  <footer>
+    <nav>
+      <a href="index.html">Accueil</a>
+      <a href="privacy.html">Confidentialité</a>
+      <a href="terms.html">Conditions d'utilisation</a>
+    </nav>
+    <p>© 2026 bobprompt</p>
+  </footer>
 </body>
 </html>
