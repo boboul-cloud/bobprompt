@@ -1,57 +1,31 @@
 #!/usr/bin/env zsh
+# Construit l'app, la lance dans le simulateur sur un écran donné et enregistre
+# une capture dans Screenshots/.
+#
+#   ./Scripts/capture_simulator_screenshot.zsh lecteur-tambour -demoScreen reader -demoStyle drum -demoWord 30
+#
+# Arguments de démonstration (compilation Debug uniquement) : voir DemoConfig
+# dans Prompteur/App/BobpromptApp.swift.
 set -euo pipefail
 
-# Config
-SCHEME="Prompteur"
-PROJECT="Prompteur.xcodeproj"
-DEVICE_NAME="iPhone 15 Pro"
+NAME=${1:-capture}; shift || true
+DEVICE_NAME=${DEVICE_NAME:-"iPhone 17"}
 DERIVED_DATA=".derived-data"
 OUT_DIR="Screenshots"
-BUNDLE_ID="com.prompteur.app"
+BUNDLE_ID="com.bobprompt.app"
 
 mkdir -p "$OUT_DIR"
+xcodegen generate >/dev/null
+xcodebuild -project Prompteur.xcodeproj -scheme Prompteur -configuration Debug \
+  -destination "platform=iOS Simulator,name=$DEVICE_NAME" \
+  -derivedDataPath "$DERIVED_DATA" build -quiet
 
-# Build for simulator (pretty output if xcpretty is available)
-if command -v xcpretty >/dev/null 2>&1; then
-  xcodebuild \
-    -project "$PROJECT" \
-    -scheme "$SCHEME" \
-    -configuration Debug \
-    -sdk iphonesimulator \
-    -derivedDataPath "$DERIVED_DATA" \
-    -destination 'generic/platform=iOS Simulator' \
-    build | xcpretty
-else
-  echo "ℹ️  xcpretty non trouvé, sortie xcodebuild non formatée."
-  xcodebuild \
-    -project "$PROJECT" \
-    -scheme "$SCHEME" \
-    -configuration Debug \
-    -sdk iphonesimulator \
-    -derivedDataPath "$DERIVED_DATA" \
-    -destination 'generic/platform=iOS Simulator' \
-    build
-fi
-
-APP_PATH=$(ls -d "$DERIVED_DATA"/Build/Products/Debug-iphonesimulator/Prompteur.app 2>/dev/null || true)
-if [[ -z "$APP_PATH" ]]; then
-  echo "❌ App non trouvée dans $DERIVED_DATA/Build/Products/Debug-iphonesimulator" >&2
-  exit 1
-fi
-
-# Boot simulator
+APP="$DERIVED_DATA/Build/Products/Debug-iphonesimulator/Prompteur.app"
 xcrun simctl boot "$DEVICE_NAME" 2>/dev/null || true
-xcrun simctl bootstatus "$DEVICE_NAME" -b
-
-# Install and launch
-xcrun simctl uninstall booted "$BUNDLE_ID" 2>/dev/null || true
-xcrun simctl install booted "$APP_PATH"
-xcrun simctl launch booted "$BUNDLE_ID" || true
-
-# Small delay to render UI
-sleep 1.5
-
-# Screenshot
-FILENAME="$OUT_DIR/prompteur-$(echo $DEVICE_NAME | tr ' ' '_' | tr -d '()').png"
-xcrun simctl io booted screenshot "$FILENAME"
-echo "✅ Capture enregistrée: $FILENAME"
+xcrun simctl status_bar "$DEVICE_NAME" override --time 9:41 --batteryState charged --batteryLevel 100 || true
+xcrun simctl install "$DEVICE_NAME" "$APP"
+xcrun simctl terminate "$DEVICE_NAME" "$BUNDLE_ID" 2>/dev/null || true
+xcrun simctl launch "$DEVICE_NAME" "$BUNDLE_ID" -AppleLanguages "(fr)" -AppleLocale fr_FR "$@" >/dev/null
+sleep 4
+xcrun simctl io "$DEVICE_NAME" screenshot "$OUT_DIR/$NAME.png"
+echo "✅ $OUT_DIR/$NAME.png"

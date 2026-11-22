@@ -1,141 +1,92 @@
-# bobprompt (iOS, SwiftUI)
+# bobprompt 2.0 (iOS, SwiftUI)
 
-Un prompteur simple et ludique pour enfants : saisie de texte, lecture avec défilement automatique, pause/arrêt, coloration des syllabes en alternant les couleurs, réglage de la vitesse et de la taille du texte. Ajouts récents : mode miroir, compte à rebours 3‑2‑1, et gestion de textes enregistrés.
+Un prompteur pour lire, présenter et filmer — et pour apprendre à lire en
+s'amusant. iPhone et iPad, iOS 17 minimum.
 
-## Prérequis
-- macOS + Xcode installé (iOS 15+ recommandé)
-- Homebrew (facultatif) pour installer XcodeGen
+## Ce que fait l'app
 
-## Générer le projet Xcode
+- **Bibliothèque** : mes textes (cartes colorées, durée estimée, reprise de
+  lecture), six exemples fournis (dont deux fables de La Fontaine), création
+  avec l'IA. Enregistrement automatique : pas de bouton « Enregistrer ».
+- **Lecteur plein écran**, six styles :
+  - *Classique* — fonds Nuit, Papier (règle de lecture surligneur), Contraste ;
+  - *Vieille école* — écran cathodique vert ou ambre (balayage, lueur,
+    démarrage façon ordinateur 8 bits), machine à écrire (frappe lettre à
+    lettre, ruban noir/rouge, ding et retour chariot synthétisés) ;
+  - *3D* — Tambour (texte enroulé sur un cylindre en perspective : glisser
+    pour tourner, glisser latéralement pour pivoter, pincer pour zoomer,
+    inclinaison de l'appareil) et Cartes (une phrase par carte, pages qui
+    tournent au doigt).
+- **Aide à la lecture** : syllabes colorées selon le découpage scolaire
+  (a-mi, ta-bleau, pa-pi-llon), mot en cours surligné, un mot par ligne,
+  « Écouter la phrase », voix qui lit tout le texte et le fait défiler.
+- **Pour filmer** : miroir, compte à rebours, écran maintenu allumé,
+  clavier / télécommande Bluetooth (espace, flèches, page suivante).
+- **Premium** (achat unique `com.bobprompt.premium`) : 50 textes au lieu de 2.
 
-```zsh
-# Installer XcodeGen si besoin
-brew install xcodegen
-
-# À la racine du repo
-cd "$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
-cd "Users/robertoulhen/Documents/CODES/Prompteur" 2>/dev/null || true
-
-# Générer le .xcodeproj
-xcodegen generate
-```
-
-Ouvrez ensuite `Prompteur.xcodeproj` dans Xcode et lancez l'app sur un simulateur ou un iPhone.
-
-## Déployer sur iPhone (ex. iPhone 14 Pro)
-
-1) Configurer la signature dans Xcode
-- Cible `Prompteur` → onglet "Signing & Capabilities".
-- Cochez "Automatically manage signing".
-- Choisissez votre "Team" (Apple ID connecté).
-- Assurez-vous que le `Bundle Identifier` est unique (ex: `com.votreNom.prompteur`).
-
-2) Activer le "Developer Mode" (iOS 16+ requis sur iPhone 14 Pro)
-- Réglages → Confidentialité et sécurité → Developer Mode → Activer → Redémarrer.
-
-3) Faire confiance au certificat développeur (si demandé)
-- Réglages → Général → VPN et gestion de l’appareil → votre certificat → Faire confiance.
-
-4) Lancer sur l’appareil
-- Branchez l’iPhone 14 Pro et sélectionnez-le comme destination de build.
-- `Cmd + R` pour construire et installer.
-
-5) Si Xcode signale que "xcodebuild requires Xcode" (outil CLT actif)
+## Construire
 
 ```zsh
-sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
-xcodebuild -version
-```
-
-Conseils
-- Cible minimale iOS 15.0 (OK pour iPhone 14 Pro). Si votre appareil est plus ancien, baissez la cible et ajustez les API conditionnellement.
-- En cas de conflit d’identifiant, changez le `Bundle Identifier` dans l’onglet Signing & Capabilities.
-- Si le build reste bloqué, essayez Product → Clean Build Folder (Shift+Cmd+K).
-
-## Icône de l’application
-Un jeu d’icônes placeholder a été ajouté dans `Prompteur/Assets.xcassets/AppIcon.appiconset` (fichiers référencés mais non fournis). Remplacez chaque PNG par vos images exportées:
-
-Tailles à préparer (format PNG sans alpha obligatoire pour App Store, alpha accepté en debug):
-- iPhone: 60×60 @2x → 120×120 (`AppIcon-120.png`), 60×60 @3x → 180×180 (`AppIcon-180.png`)
-- iPad: 76×76 → 76×76 (`AppIcon-76.png`), 76×76 @2x → 152×152 (`AppIcon-152.png`), 83.5×83.5 @2x → 167×167 (`AppIcon-167.png`)
-- Marketing: 1024×1024 (`AppIcon-1024.png`)
-
-Procédure:
-1. Déposez vos fichiers nommés exactement comme dans `Contents.json`.
-2. Ouvrez le projet Xcode → Asset Catalog pour vérifier l’aperçu.
-3. Lancez sur l’appareil/simulateur pour voir l’icône.
-
-Générer les tailles depuis une seule image
-Si vous avez un PNG carré (idéalement 1024×1024), utilisez le script fourni pour générer toutes les tailles automatiquement:
-
-```zsh
-chmod +x Scripts/generate_app_icons.zsh
-./Scripts/generate_app_icons.zsh /chemin/vers/votre_icone_1024.png
+brew install xcodegen      # une fois
+xcodegen generate          # régénère Prompteur.xcodeproj depuis project.yml
 open Prompteur.xcodeproj
 ```
 
-Le script remplit `AppIcon.appiconset` avec les fichiers aux bons noms. Ouvrez Xcode pour voir l’aperçu mis à jour.
+`project.yml` est la source de vérité (bundle `com.bobprompt.app`, équipe,
+version, cible de tests). Ne modifiez pas le `.xcodeproj` à la main.
 
-Astuce design:
-- Forme simple et lisible (pas de trop petits détails).
-- Conservez une marge (~12%) pour éviter la découpe optique.
-- Evitez le texte; privilégiez symbole (ex: lettre "P" stylisée + baguette magique).
-
-## Fonctionnalités
-- Saisie du texte (onglet **Éditer**) et aperçu coloré.
-- Lecture (onglet **Lire**) avec défilement automatique.
-- Boutons Lecture/Pause, Arrêter.
-- Coloration syllabique alternée (activable/désactivable).
-- Réglage de la vitesse (pt/s) et de la taille du texte.
- - Mode miroir (pour utilisation avec réflecteur).
- - Compte à rebours (3…2…1) avant démarrage, optionnel.
- - Sauvegarde de textes via Keychain (persistante après réinstallation).
-   - Mode gratuit : jusqu'à 2 textes
-   - Mode Premium : jusqu'à 50 textes
-
-## Notes techniques
-- SwiftUI + `UITextView` intégré via `UIViewRepresentable` pour un défilement fluide.
-- Syllabification basée sur l'API de césure CoreFoundation (`CFStringGetHyphenationLocationBeforeIndex`) avec locale `fr_FR`.
-- Thème visuel doux avec couleurs vives et police *rounded*.
- - Sélecteur de thème simple (Océan/Bonbons).
-
-## Génération de texte IA (OpenAI)
-
-Une génération de texte en ligne (qualité supérieure) est disponible dans l'onglet « Créer ».
-
-### Configuration de la clé API
-1. Créez un compte sur https://platform.openai.com/ et générez une clé secrète.
-2. Ouvrez l'application, onglet « Créer ».
-3. Activez le toggle « Utiliser IA en ligne ».
-4. Collez la clé dans le champ « Clé API OpenAI ». Elle est stockée localement via le Trousseau (Keychain) et n'est pas envoyée hors des requêtes d'inférence.
-
-Si la clé est absente ou invalide, un message d'erreur apparaît dans la section « Erreur ». La génération locale hors‑ligne reste disponible en désactivant le toggle.
-
-### Paramètres
-- Température : contrôle la créativité (0.1 = très factuel, 1.2 = créatif). Valeur par défaut 0.9.
-- Nombre de mots : plage 30–600 (la requête ajuste les tokens automatiquement).
-
-### Fallback hors‑ligne
-Si le service distant est indisponible ou si aucune clé n'est fournie, vous pouvez basculer sur le générateur intégré (non connecté) pour obtenir un texte d'exemple respectant vos critères de base.
-
-### Confidentialité
-Seuls le prompt (critères + consignes) et les paramètres (température, longueur) sont envoyés à OpenAI. Aucune autre donnée locale n'est transmise.
-
-### Améliorations possibles
-- Streaming token‑par‑token pour un affichage progressif.
-- Sélection du modèle (gpt‑4o, gpt‑4o-mini, etc.) dans l'interface.
-- Historique des prompts et régénération rapide.
-
-
-## Capturer une capture d'écran (simulateur)
-
-Exécutez le script suivant pour construire l'app, démarrer un simulateur iPhone et enregistrer une capture d'écran dans `Screenshots/`.
+Tests :
 
 ```zsh
-chmod +x Scripts/capture_simulator_screenshot.zsh
-./Scripts/capture_simulator_screenshot.zsh
+xcodebuild -project Prompteur.xcodeproj -scheme Prompteur \
+  -destination 'platform=iOS Simulator,name=iPhone 17' test
 ```
 
-Si besoin, modifiez dans le script le nom du device (`DEVICE_NAME`) ou l'emplacement de sortie.
+## Organisation du code
 
-Astuce: vous pouvez aussi exporter une image depuis la Canvas des Previews (clic droit → Export) quand `ContentView.swift` est ouvert.
+| Dossier | Rôle |
+|---|---|
+| `App/` | entrée de l'app, navigation (`AppRouter`), mode démo (Debug) |
+| `Model/` | textes (`Script`, `ScriptStore` au Trousseau), réglages persistés, exemples |
+| `Text/` | découpage syllabique, mots/phrases/ligne de temps, mise en lignes, coloration |
+| `Engine/` | moteur de lecture (horloge, phases, voix), synthèse vocale, sons, inclinaison |
+| `Design/` | couleurs, typographie, boutons |
+| `Features/` | bibliothèque, éditeur, lecteur et ses six scènes, IA, Premium, aide |
+
+Principe : un seul moteur (`PrompterEngine`) avance dans une **ligne de temps**
+exprimée en mots. Chaque style d'affichage fournit la sienne (défilement
+régulier, frappe lettre à lettre, phrase par phrase) ; changer de style garde
+le mot en cours. Quand la voix est activée, c'est elle qui fait avancer la
+position, mot par mot.
+
+## Données
+
+- Textes : Trousseau, clé `prompteur.savedTexts.v2` (celle de la v1 : les
+  textes existants sont repris tels quels). Ils survivent à une réinstallation.
+- Réglages : `UserDefaults`, clé `bobprompt.readerSettings.v2`.
+- Clé OpenAI facultative : Trousseau, `OPENAI_API_KEY`.
+
+## IA
+
+« Avec l'IA » utilise Apple Intelligence sur l'appareil (iOS 26+, gratuit,
+privé) quand il est disponible, sinon une clé OpenAI fournie par
+l'utilisateur. `FoundationModels` est lié en mode faible pour rester
+compatible iOS 17.
+
+## Captures (simulateur)
+
+En compilation Debug, des arguments de lancement ouvrent directement un écran :
+
+```zsh
+./Scripts/capture_simulator_screenshot.zsh tambour -demoScreen reader -demoStyle drum -demoWord 30
+```
+
+`-demoScreen` : `reader`, `styles`, `settings`, `editor`, `create`, `premium`,
+`help` · `-demoStyle` : `classic`, `crtGreen`, `crtAmber`, `typewriter`,
+`drum`, `cards` · `-demoTheme` : `night`, `paper`, `contrast` ·
+`-demoSample n` · `-demoWord n` · `-demoPlay YES` · `-demoVoice YES` ·
+`-demoSeed YES` (textes fictifs en mémoire) · `-demoPremium YES|NO`.
+
+## Icône
+
+`./Scripts/generate_app_icons.zsh image_1024.png` remplit `AppIcon.appiconset`.
