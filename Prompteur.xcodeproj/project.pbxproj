@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 77;
+	objectVersion = 63;
 	objects = {
 
 /* Begin PBXBuildFile section */
@@ -59,7 +59,7 @@
 /* Begin PBXFileReference section */
 		035782C5D0334E08D3402C30 /* MotionTilt.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MotionTilt.swift; sourceTree = "<group>"; };
 		05059B04CE63E9F33007D91B /* FrenchSyllabifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FrenchSyllabifier.swift; sourceTree = "<group>"; };
-		074422B12DBDC00DA992BFBC /* Prompteur.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Prompteur.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		074422B12DBDC00DA992BFBC /* Prompteur.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Prompteur.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		1375C16AECCE9A9264B01F0D /* AppRouter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppRouter.swift; sourceTree = "<group>"; };
 		256D930BFF92A0A4EF11C5B6 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		29ED8BD2EF087EAA461D6DED /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -90,13 +90,13 @@
 		C012F30C42DBEFC4AE5AFBD1 /* LibraryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryView.swift; sourceTree = "<group>"; };
 		C23E90139132B678A34B8718 /* Prompteur.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Prompteur.entitlements; sourceTree = "<group>"; };
 		C61AE894369F149786857B1A /* ScriptStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScriptStore.swift; sourceTree = "<group>"; };
-		C9F7FBD1C600C83501EBF966 /* PrompteurTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = PrompteurTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		C9F7FBD1C600C83501EBF966 /* PrompteurTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = PrompteurTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		CD4E2C7F6BAE64060054D630 /* PurchaseManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PurchaseManager.swift; sourceTree = "<group>"; };
 		D19028EB03431CB7603379C8 /* LineLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LineLayout.swift; sourceTree = "<group>"; };
 		DEEC1A89A8DA6BEAFF8EAAF9 /* HelpView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HelpView.swift; sourceTree = "<group>"; };
 		E253C12EBA86305EFABED190 /* TextEngineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextEngineTests.swift; sourceTree = "<group>"; };
 		EA41F3634D4D50E60B2D2557 /* ReaderSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReaderSettingsView.swift; sourceTree = "<group>"; };
-		F60EE6D832534CC34268AF92 /* Products.storekit */ = {isa = PBXFileReference; path = Products.storekit; sourceTree = "<group>"; };
+		F60EE6D832534CC34268AF92 /* Products.storekit */ = {isa = PBXFileReference; lastKnownFileType = text; path = Products.storekit; sourceTree = "<group>"; };
 		F9C3918CD4F38A830741434C /* StageSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StageSupport.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -322,7 +322,7 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = YES;
-				LastUpgradeCheck = 2700;
+				LastUpgradeCheck = 2720;
 				TargetAttributes = {
 					39172EC71EAF6B71C77BB880 = {
 						DevelopmentTeam = 38DQ8FW23J;
@@ -343,7 +343,6 @@
 			);
 			mainGroup = D2FC00057D4DBF8DDB2E39F8;
 			minimizedProjectReferenceProxies = 1;
-			preferredProjectObjectVersion = 77;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
@@ -482,6 +481,7 @@
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_COMPILATION_MODE = wholemodule;
 				SWIFT_OPTIMIZATION_LEVEL = "-O";
 				SWIFT_VERSION = 5.9;
@@ -522,7 +522,11 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				OTHER_LDFLAGS = "$(inherited) -weak_framework FoundationModels";
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-weak_framework",
+					FoundationModels,
+				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.bobprompt.app;
 				PRODUCT_NAME = Prompteur;
 				SDKROOT = iphoneos;
@@ -593,6 +597,7 @@
 				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.9;
@@ -633,7 +638,11 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				OTHER_LDFLAGS = "$(inherited) -weak_framework FoundationModels";
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-weak_framework",
+					FoundationModels,
+				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.bobprompt.app;
 				PRODUCT_NAME = Prompteur;
 				SDKROOT = iphoneos;

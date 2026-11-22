@@ -39,9 +39,9 @@ final class TypewriterSound {
         guard !starting else { return false }
         starting = true
         let e = engine
-        AudioSession.activate {
+        AudioSession.activate { [weak self] in
             try? e.start()
-            DispatchQueue.main.async { [weak self] in self?.starting = false }
+            DispatchQueue.main.async { self?.starting = false }
         }
         return false
     }
