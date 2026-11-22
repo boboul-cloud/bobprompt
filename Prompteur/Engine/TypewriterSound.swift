@@ -30,13 +30,20 @@ final class TypewriterSound {
         ready = true
     }
 
+    private var starting = false
+
+    /// Démarre le moteur hors du fil principal ; le tout premier son est sauté.
     private func ensureRunning() -> Bool {
         prepare()
-        if !engine.isRunning {
-            SpeechEngine.activateAudioSession()
-            do { try engine.start() } catch { return false }
+        if engine.isRunning { return true }
+        guard !starting else { return false }
+        starting = true
+        let e = engine
+        AudioSession.activate {
+            try? e.start()
+            DispatchQueue.main.async { [weak self] in self?.starting = false }
         }
-        return true
+        return false
     }
 
     func key() { play(clacks.randomElement(), volume: Float.random(in: 0.22...0.34)) }

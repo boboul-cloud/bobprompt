@@ -36,6 +36,7 @@
 		BEAFDB3E4E71240AC21A272F /* CRTStage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 96CD850AB065E07EF0F8F55F /* CRTStage.swift */; };
 		BF583BEB5223A7189B2E1F59 /* EditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 999ACCB8326331E064258EFD /* EditorView.swift */; };
 		CA26E82C8C6A6946A562A9B5 /* TextEngineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E253C12EBA86305EFABED190 /* TextEngineTests.swift */; };
+		D2597F66F86EB9294CFCEE69 /* AudioSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3C4DA241A57ACE53C186CC0D /* AudioSession.swift */; };
 		D264C7C034F29D30D9DDDA6F /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 29ED8BD2EF087EAA461D6DED /* Assets.xcassets */; };
 		D3D00ABE40A9229ED999BB1B /* PrompterEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = B13D36107F6793A3C6178A60 /* PrompterEngine.swift */; };
 		D8672A9585BB95AA40427662 /* PrompterDocument.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2E928DA6E03EA8EF46356470 /* PrompterDocument.swift */; };
@@ -67,6 +68,7 @@
 		33D19BB2139EDC7600B961A8 /* SpeechEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechEngine.swift; sourceTree = "<group>"; };
 		34EECE778EBEDE43836504D8 /* TypewriterSound.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TypewriterSound.swift; sourceTree = "<group>"; };
 		3927E16927E35EAC27BFCE9C /* BobpromptApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BobpromptApp.swift; sourceTree = "<group>"; };
+		3C4DA241A57ACE53C186CC0D /* AudioSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioSession.swift; sourceTree = "<group>"; };
 		3F4931BC74CE5BF2E7AA057E /* PremiumView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PremiumView.swift; sourceTree = "<group>"; };
 		4334546EAD40411B5E3BC69C /* ClassicStage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClassicStage.swift; sourceTree = "<group>"; };
 		46E1CEDA6B90DEEA7B4D66FF /* TypewriterStage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TypewriterStage.swift; sourceTree = "<group>"; };
@@ -206,6 +208,7 @@
 		9144F17E607CD6297B919EC1 /* Engine */ = {
 			isa = PBXGroup;
 			children = (
+				3C4DA241A57ACE53C186CC0D /* AudioSession.swift */,
 				035782C5D0334E08D3402C30 /* MotionTilt.swift */,
 				B13D36107F6793A3C6178A60 /* PrompterEngine.swift */,
 				33D19BB2139EDC7600B961A8 /* SpeechEngine.swift */,
@@ -370,6 +373,7 @@
 				7F62D7C6103F3E33B914D5FB /* AICreateView.swift in Sources */,
 				09095FAF38B2D592D8D4B6A1 /* AIService.swift in Sources */,
 				62D3CB1984B2DA2E96893DCF /* AppRouter.swift in Sources */,
+				D2597F66F86EB9294CFCEE69 /* AudioSession.swift in Sources */,
 				7E8F2E0E0B2C861085EB9C08 /* BobpromptApp.swift in Sources */,
 				BEAFDB3E4E71240AC21A272F /* CRTStage.swift in Sources */,
 				508C60375D05A4AD0931F9C0 /* CardsStage.swift in Sources */,

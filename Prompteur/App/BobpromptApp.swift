@@ -9,6 +9,7 @@ struct BobpromptApp: App {
     @Environment(\.scenePhase) private var scenePhase
 
     init() {
+        AudioSession.configure()
         #if DEBUG
         let s = DemoConfig.current.seed ? ScriptStore(persistence: MemoryScriptPersistence(DemoConfig.seedScripts))
                                          : ScriptStore()

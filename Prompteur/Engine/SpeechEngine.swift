@@ -54,7 +54,7 @@ final class SpeechEngine: NSObject {
         let ns = doc.text as NSString
         let text = ns.substring(with: NSRange(location: start, length: end - start))
 
-        Self.activateAudioSession()
+        AudioSession.activate()
         let u = AVSpeechUtterance(string: text)
         u.voice = Self.voice(for: voiceID)
         u.rate = Self.rate(forWordsPerMinute: wordsPerMinute)
@@ -70,7 +70,7 @@ final class SpeechEngine: NSObject {
     /// Lecture ponctuelle (test de voix), sans suivi.
     func preview(_ text: String, voiceID: String, wordsPerMinute: Double) {
         stop()
-        Self.activateAudioSession()
+        AudioSession.activate()
         let u = AVSpeechUtterance(string: text)
         u.voice = Self.voice(for: voiceID)
         u.rate = Self.rate(forWordsPerMinute: wordsPerMinute)
@@ -123,19 +123,6 @@ final class SpeechEngine: NSObject {
         let region = voice.language.split(separator: "-").last.map(String.init) ?? ""
         let regionName = Locale(identifier: "fr_FR").localizedString(forRegionCode: region) ?? region
         return "\(name) (\(regionName))"
-    }
-
-    /// La voix et les sons jouent même en mode silencieux, sans couper ni
-    /// baisser durablement la musique d'une autre app.
-    static func activateAudioSession() {
-        let session = AVAudioSession.sharedInstance()
-        try? session.setCategory(.playback, mode: .spokenAudio, options: [.mixWithOthers])
-        try? session.setActive(true)
-    }
-
-    /// À la fermeture du lecteur : rend la main aux autres apps.
-    static func deactivateAudioSession() {
-        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
     }
 
     // MARK: Rappels (sur le fil principal)

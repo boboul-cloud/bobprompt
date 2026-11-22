@@ -266,7 +266,7 @@ struct ReaderView: View {
         savePosition()
         engine.shutdown()
         TypewriterSound.shared.stop()
-        SpeechEngine.deactivateAudioSession()
+        AudioSession.deactivate()
         tilt.stop()
         hideTask?.cancel()
     }
